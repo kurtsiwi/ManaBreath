@@ -1,0 +1,28 @@
+# Finales de linea LF en el repo y en la copia de trabajo, sin depender de
+# core.autocrlf de cada clon. WoW lee LF y CRLF sin problema, pero asi el zip
+# que se publica en CurseForge sale igual desde cualquier maquina.
+* text=auto eol=lf
+
+*.lua   text eol=lf
+*.toc   text eol=lf
+*.xml   text eol=lf
+*.md    text eol=lf
+.pkgmeta text eol=lf
+
+# Recursos del addon: nunca tocar.
+*.blp binary
+*.tga binary
+*.png binary
+*.jpg binary
+*.ogg binary
+*.mp3 binary
+*.ttf binary
+*.otf binary
+*.zip binary
+
+# Fuera de los tarballs de git archive (equivalente al ignore del .pkgmeta).
+/tests/      export-ignore
+/.gitattributes export-ignore
+/.gitignore     export-ignore
+/.pkgmeta       export-ignore
+/README.md      export-ignore
