@@ -36,6 +36,8 @@ To position it:
 | `/mb text on/off` | Text on the bar |
 | `/mb always on/off` | Keep the bar always visible |
 | `/mb fallback on/off` | Also detect via mana drops |
+| `/mb channel on/off` | Restart the countdown when a channel is cut |
+| `/mb verify` | Measure against the client whether the 5 s rule really exists |
 | `/mb debug on/off` | Print the cost read for every cast |
 | `/mb status` | Current state, including restricted context |
 | `/mb reset` | Restore defaults |
@@ -58,10 +60,17 @@ rely on the combat log:
    long as the channel lasts. Since a channel fires both `SUCCEEDED` and
    `CHANNEL_START` at once, the addon discards the duplicate by comparing
    `castGUID`, which is never secret.
-3. **Secret Values** — if the cost arrives protected, the addon waits ~0.35 s
-   and confirms the expense only if mana actually drops within that window.
-   Every value coming from the game goes through `issecretvalue()` before use.
-4. **Optional fallback** (`/mb fallback on`, off by default) — any mana drop in
+3. **Conditional costs** — a cost entry carrying `hasRequiredAura` only applies
+   while a given aura is up, so it does not count as a certain cost and is
+   confirmed against mana instead. Without this, a spell an aura made free
+   would start the rule even though nothing was spent.
+4. **Secret Values** — if the cost arrives protected, the addon confirms the
+   expense only if mana drops within ~0.35 s. The window is **symmetric**: the
+   order in which the client delivers `UNIT_POWER_UPDATE` and
+   `UNIT_SPELLCAST_SUCCEEDED` is not guaranteed, so it holds whether the
+   deduction arrives before or after the cast. Every value coming from the game
+   goes through `issecretvalue()` before use.
+5. **Optional fallback** (`/mb fallback on`, off by default) — any mana drop in
    `UNIT_POWER_UPDATE` starts the countdown. This produces false positives: an
    enemy burning your mana does not trigger the rule.
 
@@ -83,6 +92,35 @@ not guess and does no arithmetic — it stays on the mana-confirmation path.
 thing to check if the addon works in the open world but fails inside a dungeon:
 it tells you that you are in a context where more values arrive protected.
 
+### What is deterministic and what isn't
+
+The WoW API **does not report the state of the 5-second rule**. There is no
+event, flag or query: it is a server-side mechanic the client is never told
+about. The closest thing is `GetPowerRegen()`, which returns your two
+regeneration rates but not which one is in effect or when the window started.
+Every 5SR addon ever written reconstructs the rule by inference.
+
+What the API **does** give deterministically are three facts: that you
+completed a cast, what that spell costs, and that your mana changed and by how
+much. What it does not give is **attribution**: why mana dropped. Combining
+cast + cost resolves attribution for the normal case, and that is not guesswork.
+
+On that basis the addon is deterministic in its own right: same event sequence
+→ same state, no randomness, frame-rate independent (the bar uses `GetTime()`
+deltas, it does not count frames) and free of accumulated drift. And it fails
+closed: an unreadable cost never produces a false bar.
+
+What stays outside our control:
+
+- **Latency.** The window starts when the client receives the server's
+  confirmation, not when the server charged the mana. A limit of any addon.
+- **The 5.0 is hardcoded** and is an assumption about Forever. `/mb verify`
+  exists to check it.
+- **Restarting on channel stop is an inference** from vanilla mechanics, not a
+  verified fact. If it turns out wrong, `/mb channel off`.
+- **Enemy mana drains** inside the confirmation window can cause a false
+  positive. Bounded to ~0.35 s, or unbounded if you enable `/mb fallback on`.
+
 ### About `## Interface: 16001`
 
 The interface version is encoded as `MMmmpp`. Standard Midnight uses `120001`
@@ -101,13 +139,13 @@ Measured outside the game with `lua tests/bench.lua`:
 
 | | |
 | --- | --- |
-| Static footprint (loaded and initialized) | ~47 KB |
+| Static footprint (loaded and initialized) | ~56 KB |
 | Idle, bar hidden | **0 bytes/frame, no `OnUpdate` installed** |
 | Bar visible but idle (`/mb always on`) | **0 bytes/frame, no `OnUpdate` installed** |
 | Bar active at 60 fps | ~1 byte/frame |
-| One full 5 s cycle | ~0.5 KB |
+| One full 5 s cycle | ~0.18 KB |
 | `UNIT_POWER_UPDATE` | no measurable garbage |
-| Per cast | ~13 bytes |
+| Per cast | 3-12 bytes |
 | Drift after 200 cycles + 400 casts + 2000 `UNIT_POWER_UPDATE` | **-0.04 KB (no leak)** |
 
 Three decisions account for those numbers:
@@ -122,9 +160,13 @@ Three decisions account for those numbers:
   changes 10 times a second and the spark moves one pixel every few frames; the
   remaining `SetText` and `SetPoint` calls would be invisible work.
 
+Of those ~56 KB, about 8 KB is `Verify.lua`, which is only used once to check
+the rule in game. That is a conscious call: it costs resident memory in return
+for being able to measure instead of assume.
+
 The one unavoidable allocation is `C_Spell.GetSpellPowerCost`, which returns a
-fresh table on every call. That is ~13 bytes per cast and is **deliberately not
-cached**: a Clearcasting-style aura can make a spell free, and a cached cost
+fresh table on every call. That is a few bytes per cast and is **deliberately
+not cached**: a Clearcasting-style aura can make a spell free, and a cached cost
 would start the rule on a cast that spent no mana.
 
 ## To verify in game (pending until launch)
@@ -137,7 +179,13 @@ would start the rule on a cast that spent no mana.
 - [ ] Confirm that the `spellID` from the player's own
       `UNIT_SPELLCAST_SUCCEEDED` does not arrive as a Secret Value in combat
       (`/mb debug on` prints `yes` / `no` / `unknown` for every cast).
-- [ ] Confirm Forever keeps the 5-second rule the same as vanilla.
+- [ ] Confirm Forever keeps the 5-second rule the same as vanilla, using
+      `/mb verify`: arm it, cast one mana-spending spell and do nothing else.
+      It samples mana inside and outside the window and compares against
+      `GetPowerRegen()`. Do it out of combat, outside an instance and with mana
+      below maximum, or there is no regeneration to measure.
+- [ ] Confirm whether a channel charges mana per tick or all at the start. If
+      it is all at the start, `/mb channel off`.
 - [ ] Confirm the client's final addon path (during beta it was
       `_classic_beta_\Interface\AddOns\`).
 

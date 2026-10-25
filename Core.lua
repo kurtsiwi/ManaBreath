@@ -27,6 +27,7 @@ MB.defaults = {
     showText = true,
     alwaysShow = false,
     powerFallback = false,
+    channelRestart = true,
 }
 
 -- Secret values (Midnight): los valores protegidos no se pueden comparar ni
@@ -63,14 +64,22 @@ local function SpellManaCost(spellID)
             if powerType == nil then
                 maybeMana = true
             elseif powerType == MANA then
-                local cost = SafeNumber(entry.cost)
-                local perSec = SafeNumber(entry.costPerSec)
-                local percent = SafeNumber(entry.costPercent)
-                if (cost and cost > 0) or (perSec and perSec > 0) or (percent and percent > 0) then
-                    return "yes"
-                end
-                if cost == nil and perSec == nil and percent == nil then
+                local conditional = entry.hasRequiredAura
+                if conditional ~= nil and not IsSecret(conditional) and conditional == true then
+                    -- La entrada solo aplica si cierta aura esta presente, asi
+                    -- que el coste no esta garantizado ahora mismo: no cuenta
+                    -- como "yes" y se confirma mirando el mana.
                     maybeMana = true
+                else
+                    local cost = SafeNumber(entry.cost)
+                    local perSec = SafeNumber(entry.costPerSec)
+                    local percent = SafeNumber(entry.costPercent)
+                    if (cost and cost > 0) or (perSec and perSec > 0) or (percent and percent > 0) then
+                        return "yes"
+                    end
+                    if cost == nil and perSec == nil and percent == nil then
+                        maybeMana = true
+                    end
                 end
             end
         end
@@ -86,6 +95,11 @@ end
 
 function MB:GetDB()
     return ManaBreathDB or self.defaults
+end
+
+-- Mana actual, o nil si llega protegido. Lo usa Verify.lua.
+function MB:GetMana()
+    return CurrentMana()
 end
 
 function MB:Print(...)
@@ -135,8 +149,13 @@ function MB:Start(now, force)
     self.startedAt = now
     self.expires = now + RULE_DURATION
     self.pendingUntil = nil
+    self.lastDropAt = nil
     if ns.display then
         ns.display:Start(self.startedAt, self.expires)
+    end
+    if self.verifyArmed and ns.verify then
+        self.verifyArmed = false
+        ns.verify:Run(now)
     end
 end
 
@@ -166,10 +185,20 @@ function MB:HandleCast(castGUID, spellID)
 
     if verdict == "yes" then
         self:Start()
+
     elseif verdict == "unknown" then
-        -- No sabemos el costo: si el mana baja en los proximos instantes,
-        -- lo tomamos como gasto propio.
-        self.pendingUntil = GetTime() + UNKNOWN_COST_WINDOW
+        -- No sabemos el costo, asi que lo confirmamos mirando el mana. La
+        -- ventana es simetrica a proposito: no esta garantizado el orden en
+        -- que el cliente entrega UNIT_POWER_UPDATE y UNIT_SPELLCAST_SUCCEEDED.
+        -- Si el descuento de mana ya llego, se confirma aqui; si llega
+        -- despues, lo confirma HandlePower con pendingUntil. Con una ventana
+        -- en un solo sentido, el orden inverso no confirmaba nunca.
+        local now = GetTime()
+        if self.lastDropAt and (now - self.lastDropAt) <= UNKNOWN_COST_WINDOW then
+            self:Start(now)
+        else
+            self.pendingUntil = now + UNKNOWN_COST_WINDOW
+        end
     end
 end
 
@@ -181,6 +210,10 @@ function MB:HandlePower()
     if mana == nil or previous == nil or mana >= previous then return end
 
     local now = GetTime()
+    -- Se recuerda el instante de la bajada para el lado simetrico de la
+    -- ventana: un casteo que llegue justo despues la puede reclamar.
+    self.lastDropAt = now
+
     if self.pendingUntil and now <= self.pendingUntil then
         self:Start(now)
     elseif self:GetDB().powerFallback then
@@ -230,15 +263,20 @@ events:SetScript("OnEvent", function(_, event, arg1, arg2, arg3)
     elseif event == "PLAYER_ENTERING_WORLD" or event == "ZONE_CHANGED_NEW_AREA" then
         -- Tras una pantalla de carga el mana guardado ya no sirve de referencia.
         MB.lastMana = CurrentMana()
+        MB.lastDropAt = nil
+        MB.pendingUntil = nil
         MB:UpdateRestrictionState()
 
     elseif event == "UNIT_SPELLCAST_SUCCEEDED" or event == "UNIT_SPELLCAST_CHANNEL_START" then
         MB:HandleCast(arg2, arg3)
 
     elseif event == "UNIT_SPELLCAST_CHANNEL_STOP" then
-        -- Una canalizacion gasta mana mientras dura: el contador cuenta
-        -- desde el ultimo tick, no desde el inicio.
-        if SpellManaCost(arg3) == "yes" then
+        -- Una canalizacion gasta mana mientras dura, asi que la regla deberia
+        -- contar desde el ultimo tick y no desde el inicio. Esto es una
+        -- inferencia de la mecanica de vanilla, NO algo verificado en Forever:
+        -- si Forever cobra todo al empezar el canal, la barra dura 5 s de mas.
+        -- `/mb channel off` lo desactiva.
+        if MB:GetDB().channelRestart and SpellManaCost(arg3) == "yes" then
             MB:Start()
         end
 

@@ -17,7 +17,7 @@ end
 
 -- Carga el addon como lo haria WoW: cada archivo recibe (nombre, tabla compartida)
 local ns = {}
-for _, file in ipairs({ "Core.lua", "Display.lua", "Commands.lua" }) do
+for _, file in ipairs({ "Core.lua", "Display.lua", "Verify.lua", "Commands.lua" }) do
     assert(loadfile(REPO .. "/" .. file))("ManaBreath", ns)
 end
 local MB = ns.addon
@@ -233,6 +233,105 @@ ManaBreathDB.debug = nil
 MOCK.mana = MOCK.mana - 200
 MOCK:fire("UNIT_POWER_UPDATE", "player", "MANA")
 check("confirmado por el mana aun con spellID secreto", MB:IsActive(), true)
+MB:Cancel()
+
+print("\n-- ventana simetrica: el orden de los eventos no importa --")
+-- Orden A: primero el casteo, luego la bajada de mana.
+MB:Cancel()
+MOCK:fire("UNIT_POWER_UPDATE", "player", "MANA")
+MOCK:fire("UNIT_SPELLCAST_SUCCEEDED", "player", "ord-a", MOCK.SECRET)
+check("tras el casteo no arranca sola", MB:IsActive(), false)
+MOCK.mana = MOCK.mana - 150
+MOCK:fire("UNIT_POWER_UPDATE", "player", "MANA")
+check("casteo y luego mana", MB:IsActive(), true)
+
+-- Orden B: primero la bajada de mana, luego el casteo. Este era el caso que
+-- no confirmaba nunca cuando la ventana iba en un solo sentido.
+MB:Cancel()
+MOCK:fire("UNIT_POWER_UPDATE", "player", "MANA")
+MOCK.mana = MOCK.mana - 150
+MOCK:fire("UNIT_POWER_UPDATE", "player", "MANA")
+MOCK:fire("UNIT_SPELLCAST_SUCCEEDED", "player", "ord-b", MOCK.SECRET)
+check("mana y luego casteo", MB:IsActive(), true)
+
+-- Fuera de la ventana no se reclama una bajada vieja.
+MB:Cancel()
+MOCK.mana = MOCK.mana - 150
+MOCK:fire("UNIT_POWER_UPDATE", "player", "MANA")
+MOCK:advance(1.0)
+MOCK:fire("UNIT_SPELLCAST_SUCCEEDED", "player", "ord-c", MOCK.SECRET)
+check("una bajada vieja no cuenta", MB:IsActive(), false)
+MB:Cancel()
+
+print("\n-- hasRequiredAura: coste condicionado no es un si seguro --")
+MOCK.costs[500] = { { type = 0, cost = 400, hasRequiredAura = true } }
+MOCK:fire("UNIT_SPELLCAST_SUCCEEDED", "player", "aura-1", 500)
+check("coste condicionado no arranca sola", MB:IsActive(), false)
+MOCK.mana = MOCK.mana - 400
+MOCK:fire("UNIT_POWER_UPDATE", "player", "MANA")
+check("pero si el mana baja, arranca", MB:IsActive(), true)
+MB:Cancel()
+
+-- Y un hechizo gratis con coste base condicionado no debe arrancar nada.
+MOCK:fire("UNIT_SPELLCAST_SUCCEEDED", "player", "aura-2", 500)
+MOCK:advance(1.0)
+check("hechizo gratis no arranca la regla", MB:IsActive(), false)
+MB:Cancel()
+
+print("\n-- reinicio de canalizacion configurable --")
+ManaBreathDB.channelRestart = true
+MOCK:fire("UNIT_SPELLCAST_CHANNEL_START", "player", "can-1", 300)
+MOCK:advance(3)
+MOCK:fire("UNIT_SPELLCAST_CHANNEL_STOP", "player", "can-1", 300)
+check("con channel on reinicia", MB:Remaining(), 5.0)
+MB:Cancel()
+
+ManaBreathDB.channelRestart = false
+MOCK:fire("UNIT_SPELLCAST_CHANNEL_START", "player", "can-2", 300)
+MOCK:advance(3)
+MOCK:fire("UNIT_SPELLCAST_CHANNEL_STOP", "player", "can-2", 300)
+check("con channel off no reinicia", math.floor(MB:Remaining() * 10 + 0.5) / 10, 2.0)
+ManaBreathDB.channelRestart = true
+MB:Cancel()
+
+print("\n-- /mb verify mide la regla contra el cliente --")
+local said = {}
+local realPrint = MB.Print
+MB.Print = function(self, ...)
+    local parts = {}
+    for i = 1, select("#", ...) do parts[i] = tostring((select(i, ...))) end
+    said[#said + 1] = table.concat(parts, " ")
+end
+local function saidMatch(pat)
+    for _, line in ipairs(said) do if line:find(pat, 1, true) then return true end end
+    return false
+end
+
+-- Cliente que SI aplica la regla: no regenera durante los 5 s.
+said = {}
+MOCK.mana = 2000
+MOCK.regenPerSec = 50
+MOCK.regenSuspendedUntil = 0
+slash("verify")
+check("verify se arma", MB.verifyArmed, true)
+MOCK.regenSuspendedUntil = MOCK.now + 5
+MOCK:fire("UNIT_SPELLCAST_SUCCEEDED", "player", "ver-1", 100)
+check("al castear se desarma", MB.verifyArmed, false)
+MOCK:advance(8, 1 / 60)
+check("veredicto coherente", saidMatch("coherente"), true)
+
+-- Cliente que NO aplica la regla: regenera todo el tiempo.
+said = {}
+MB:Cancel()
+MOCK.mana = 2000
+MOCK.regenSuspendedUntil = 0
+slash("verify")
+MOCK:fire("UNIT_SPELLCAST_SUCCEEDED", "player", "ver-2", 100)
+MOCK:advance(8, 1 / 60)
+check("veredicto incoherente", saidMatch("incoherente"), true)
+
+MOCK.regenPerSec = 0
+MB.Print = realPrint
 MB:Cancel()
 
 print(("\n%d ok, %d fallos"):format(passes, fails))

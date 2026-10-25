@@ -27,7 +27,7 @@ dofile(SP .. "/mock_wow.lua")
 local afterMock = settle()
 
 local ns = {}
-for _, file in ipairs({ "Core.lua", "Display.lua", "Commands.lua" }) do
+for _, file in ipairs({ "Core.lua", "Display.lua", "Verify.lua", "Commands.lua" }) do
     assert(loadfile(REPO .. "/" .. file))("ManaBreath", ns)
 end
 local MB, D = ns.addon, ns.display

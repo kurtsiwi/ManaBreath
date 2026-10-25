@@ -37,6 +37,8 @@ colocarla:
 | `/mb text on/off` | Textos sobre la barra |
 | `/mb always on/off` | Mantener la barra siempre visible |
 | `/mb fallback on/off` | Detectar también por bajadas de maná |
+| `/mb channel on/off` | Reiniciar el contador al cortar una canalización |
+| `/mb verify` | Mide contra el cliente si la regla de 5 s existe de verdad |
 | `/mb debug on/off` | Imprime el costo leído de cada casteo |
 | `/mb status` | Estado actual, incluido el contexto restringido |
 | `/mb reset` | Vuelve a los valores por defecto |
@@ -59,10 +61,17 @@ del combat log:
    mientras dura el canal. Como una canalización dispara `SUCCEEDED` y
    `CHANNEL_START` a la vez, el addon descarta el duplicado comparando el
    `castGUID`, que nunca es secreto.
-3. **Secret Values** — si el costo llega protegido, el addon espera ~0.35 s y
-   confirma el gasto solo si el maná baja en esa ventana. Todo valor que viene
-   del juego pasa por `issecretvalue()` antes de usarse.
-4. **Respaldo opcional** (`/mb fallback on`, apagado por defecto) — cualquier
+3. **Costes condicionados** — una entrada de coste con `hasRequiredAura` solo
+   aplica si cierta aura está presente, así que no cuenta como coste seguro y
+   se confirma mirando el maná. Sin esto, un hechizo que un aura dejó gratis
+   arrancaría la regla sin que hubieras gastado nada.
+4. **Secret Values** — si el coste llega protegido, el addon confirma el gasto
+   solo si el maná baja dentro de ~0,35 s. La ventana es **simétrica**: no está
+   garantizado el orden en que el cliente entrega `UNIT_POWER_UPDATE` y
+   `UNIT_SPELLCAST_SUCCEEDED`, así que vale tanto si el descuento llega antes
+   del casteo como después. Todo valor que viene del juego pasa por
+   `issecretvalue()` antes de usarse.
+5. **Respaldo opcional** (`/mb fallback on`, apagado por defecto) — cualquier
    bajada de maná en `UNIT_POWER_UPDATE` arranca el contador. Da falsos
    positivos: si un enemigo te quema maná, eso no activa la regla.
 
@@ -84,6 +93,36 @@ hace aritmética: se queda en el camino de confirmación por maná.
 hay que mirar si el addon funciona en el mundo abierto pero falla dentro de una
 mazmorra: indica que estás en un contexto donde más valores llegan protegidos.
 
+### Qué es determinista y qué no
+
+La API de WoW **no informa del estado de la regla de 5 segundos**. No hay
+evento, bandera ni consulta: es una mecánica del servidor de la que el cliente
+nunca se entera. Lo más cercano es `GetPowerRegen()`, que devuelve tus dos
+tasas de regeneración pero no cuál está vigente ni cuándo empezó la ventana.
+Todo addon de 5SR que ha existido reconstruye la regla por inferencia.
+
+Lo que la API **sí** da de forma determinista son tres hechos: que completaste
+un casteo, cuánto cuesta ese hechizo, y que tu maná cambió y en cuánto. Lo que
+no da es la **atribución**: por qué bajó el maná. Combinar casteo + coste
+resuelve la atribución para el caso normal, y eso no es una adivinanza.
+
+Sobre esa base, el addon es determinista en lo suyo: misma secuencia de eventos
+→ mismo estado, sin aleatoriedad, independiente del framerate (la barra usa
+diferencias de `GetTime()`, no cuenta frames) y sin deriva acumulada. Y falla
+cerrado: un coste ilegible nunca produce una barra falsa.
+
+Lo que queda fuera de nuestro control:
+
+- **Latencia.** La ventana arranca cuando el cliente recibe la confirmación del
+  servidor, no cuando el servidor cobró el maná. Límite de cualquier addon.
+- **El 5.0 está fijo en el código** y es una suposición sobre Forever.
+  `/mb verify` sirve para comprobarla.
+- **El reinicio al cortar una canalización es una inferencia** de la mecánica
+  de vanilla, no un hecho verificado. Si resulta falso, `/mb channel off`.
+- **Drenajes de maná enemigos** dentro de la ventana de confirmación pueden dar
+  un falso positivo. Acotado a ~0,35 s, o sin acotar si activas
+  `/mb fallback on`.
+
 ### Sobre `## Interface: 16001`
 
 La interfaz se codifica como `MMmmpp`. El Midnight estándar usa `120001`
@@ -102,13 +141,13 @@ Medido fuera del juego con `lua tests/bench.lua`:
 
 | | |
 | --- | --- |
-| Huella estática (cargado e inicializado) | ~47 KB |
+| Huella estática (cargado e inicializado) | ~56 KB |
 | En reposo, barra oculta | **0 bytes/frame, sin `OnUpdate` instalado** |
 | Barra visible pero en reposo (`/mb always on`) | **0 bytes/frame, sin `OnUpdate` instalado** |
 | Barra activa a 60 fps | ~1 byte/frame |
-| Ciclo completo de 5 s | ~0,5 KB |
+| Ciclo completo de 5 s | ~0,18 KB |
 | `UNIT_POWER_UPDATE` | sin basura medible |
-| Por casteo | ~13 bytes |
+| Por casteo | 3–12 bytes |
 | Deriva tras 200 ciclos + 400 casteos + 2000 `UNIT_POWER_UPDATE` | **−0,04 KB (sin fuga)** |
 
 Tres decisiones explican esos números:
@@ -123,9 +162,13 @@ Tres decisiones explican esos números:
   cambia 10 veces por segundo y la chispa se mueve un píxel cada varios
   frames; el resto de los `SetText` y `SetPoint` serían trabajo invisible.
 
+De esos ~56 KB, unos 8 KB son `Verify.lua`, que solo se usa una vez para
+comprobar la regla en el juego. Es una decisión consciente: cuesta memoria
+residente a cambio de poder medir en vez de suponer.
+
 Lo único que asigna de forma inevitable es `C_Spell.GetSpellPowerCost`, que
-devuelve una tabla nueva en cada llamada. Son ~13 bytes por casteo y **no se
-cachea a propósito**: una aura tipo Clearcasting puede dejar un hechizo gratis,
+devuelve una tabla nueva en cada llamada. Son unos pocos bytes por casteo y
+**no se cachea a propósito**: una aura tipo Clearcasting puede dejar un hechizo gratis,
 y un coste cacheado arrancaría la regla en un casteo que no gastó maná.
 
 ## Verificar en el juego (pendiente hasta el lanzamiento)
@@ -138,7 +181,13 @@ y un coste cacheado arrancaría la regla en un casteo que no gastó maná.
 - [ ] Confirmar que el `spellID` de `UNIT_SPELLCAST_SUCCEEDED` del propio
       jugador no llega como Secret Value en combate (con `/mb debug on` se
       imprime `yes` / `no` / `unknown` por cada casteo).
-- [ ] Confirmar que Forever mantiene la regla de 5 s igual que vanilla.
+- [ ] Confirmar que Forever mantiene la regla de 5 s igual que vanilla, con
+      `/mb verify`: ármalo, lanza un hechizo que gaste maná y no hagas nada
+      más. Mide el maná dentro y fuera de la ventana y compara contra
+      `GetPowerRegen()`. Hazlo fuera de combate, fuera de instancia y con el
+      maná por debajo del máximo, o no hay regeneración que medir.
+- [ ] Confirmar si una canalización cobra el maná por tick o todo al empezar.
+      Si es al empezar, `/mb channel off`.
 - [ ] Confirmar la ruta final de addons del cliente (en la beta era
       `_classic_beta_\Interface\AddOns\`).
 

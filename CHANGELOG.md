@@ -18,4 +18,11 @@ Primera versión.
 - Contador sin asignaciones: las 51 cadenas de la ventana de 5 s se
   precalculan al cargar.
 - Texto y chispa se actualizan solo cuando cambian.
+- Ventana de confirmación simétrica: el orden en que llegan
+  `UNIT_POWER_UPDATE` y `UNIT_SPELLCAST_SUCCEEDED` no afecta la detección.
+- Los costes con `hasRequiredAura` no cuentan como coste seguro, así que un
+  hechizo que un aura dejó gratis no arranca la regla.
+- `/mb channel off` desactiva el reinicio al cortar una canalización.
+- `/mb verify` mide contra el cliente si la regla de 5 s existe y cuánto dura,
+  usando `GetPowerRegen()` como referencia.
 - Comandos `/mb` (lock, unlock, test, scale, size, sound, text, always, fallback, reset, status).

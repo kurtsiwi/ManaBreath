@@ -29,6 +29,8 @@ local function Help()
     print("  |cffffff00/mb text on/off|r - textos de la barra")
     print("  |cffffff00/mb always on/off|r - mostrar la barra siempre")
     print("  |cffffff00/mb fallback on/off|r - detectar por bajadas de mana")
+    print("  |cffffff00/mb channel on/off|r - reiniciar al cortar una canalizacion")
+    print("  |cffffff00/mb verify|r - mide si la regla de 5 s existe de verdad")
     print("  |cffffff00/mb debug on/off|r - imprime el costo leido de cada casteo")
     print("  |cffffff00/mb reset|r - vuelve a los valores por defecto")
     print("  |cffffff00/mb status|r - estado actual")
@@ -99,6 +101,21 @@ handlers.fallback = function(value)
     end
 end
 
+handlers.channel = function(value)
+    local enabled = Toggle("channelRestart", value, "reinicio al cortar canal")
+    if not enabled then
+        MB:Print("las canalizaciones solo arrancaran el contador al empezar.")
+    end
+end
+
+handlers.verify = function()
+    if ns.verify then
+        ns.verify:Arm()
+    else
+        MB:Print("verificacion no disponible: falta Verify.lua.")
+    end
+end
+
 handlers.debug = function(value)
     Toggle("debug", value, "debug")
 end
@@ -119,8 +136,9 @@ handlers.status = function()
         :format(MB:UsesMana() and "si" or "no",
                 MB:IsActive() and "si" or "no",
                 MB:Remaining()))
-    MB:Print(("fijada: %s | escala: %s | sonido: %s | respaldo: %s")
-        :format(tostring(db.locked), tostring(db.scale), tostring(db.sound), tostring(db.powerFallback)))
+    MB:Print(("fijada: %s | escala: %s | sonido: %s | respaldo: %s | canal: %s")
+        :format(tostring(db.locked), tostring(db.scale), tostring(db.sound),
+                tostring(db.powerFallback), tostring(db.channelRestart)))
 
     MB:UpdateRestrictionState()
     if MB.restrictionApi then

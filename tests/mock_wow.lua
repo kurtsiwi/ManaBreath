@@ -1,13 +1,27 @@
 -- API falsa de WoW, suficiente para ejercitar ManaBreath fuera del juego.
 unpack = unpack or table.unpack
 
-local M = { now = 1000, mana = 5000, powerToken = "MANA", sounds = 0, log = {} }
+local M = {
+    now = 1000, mana = 5000, maxMana = 5000, powerToken = "MANA",
+    sounds = 0, log = {}, timers = {},
+    -- Regeneracion simulada. regenSuspendedUntil permite imitar un cliente
+    -- que SI aplica la regla de 5 s, para probar /mb verify contra los dos
+    -- escenarios: uno coherente y uno que regenera dentro de la ventana.
+    regenPerSec = 0, regenSuspendedUntil = 0,
+}
 _G.MOCK = M
 
 function GetTime() return M.now end
 function UnitPowerType(unit) return (M.powerToken == "MANA") and 0 or 1, M.powerToken end
 function UnitPower(unit, kind) return M.mana end
-function UnitPowerMax(unit, kind) return 5000 end
+function UnitPowerMax(unit, kind) return M.maxMana end
+function GetPowerRegen() return M.regenPerSec, 0 end
+
+C_Timer = {
+    After = function(delay, fn)
+        M.timers[#M.timers + 1] = { at = M.now + delay, fn = fn }
+    end,
+}
 function PlaySound() M.sounds = M.sounds + 1 end
 SOUNDKIT = { READY_CHECK = 1 }
 SlashCmdList = {}
@@ -78,7 +92,9 @@ C_Spell = {
         for i = 1, #entry do
             local e = entry[i]
             copy[i] = { type = e.type, cost = e.cost, costPerSec = e.costPerSec,
-                        costPercent = e.costPercent }
+                        costPercent = e.costPercent,
+                        hasRequiredAura = e.hasRequiredAura,
+                        requiredAuraID = e.requiredAuraID }
         end
         return copy
     end,
@@ -158,9 +174,27 @@ function M:advance(seconds, step)
         local dt = math.min(step, left)
         M.now = M.now + dt
         left = left - dt
+
+        if M.regenPerSec > 0 and M.now >= M.regenSuspendedUntil
+            and type(M.mana) == "number" then
+            M.mana = math.min(M.maxMana, M.mana + M.regenPerSec * dt)
+        end
+
         for _, f in ipairs(frames) do
             local onUpdate = f.scripts.OnUpdate
             if onUpdate and f.shown then onUpdate(f, dt) end
+        end
+
+        -- Temporizadores vencidos, en orden.
+        local i = 1
+        while i <= #M.timers do
+            local t = M.timers[i]
+            if M.now >= t.at then
+                table.remove(M.timers, i)
+                t.fn()
+            else
+                i = i + 1
+            end
         end
     end
 end
