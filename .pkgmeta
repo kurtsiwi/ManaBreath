@@ -1,0 +1,13 @@
+package-as: ManaBreath
+
+enable-nolib-creation: no
+
+manual-changelog:
+  filename: CHANGELOG.md
+  markup-type: markdown
+
+ignore:
+  - .github
+  - tests
+  - README.md
+  - MANABREATH_CONTEXTO.md

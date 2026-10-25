@@ -1,0 +1,16 @@
+## Interface: 16001
+## Title: ManaBreath
+## Notes: Indica cuando esta activa la regla de 5 segundos de regeneracion de mana.
+## Notes-esES: Indica cuándo está activa la regla de 5 segundos de regeneración de maná.
+## Author: kurtsiwi
+## Version: 1.0.0
+## Category: Combat
+## SavedVariables: ManaBreathDB
+## AllowAddOnTableAccess: 0
+## IconTexture: Interface\Icons\Spell_Frost_WizardMark
+## X-License: MIT
+## X-Website: https://github.com/kurtsiwi/ManaBreath
+
+Core.lua
+Display.lua
+Commands.lua
