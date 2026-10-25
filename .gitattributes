@@ -25,4 +25,3 @@
 /.gitattributes export-ignore
 /.gitignore     export-ignore
 /.pkgmeta       export-ignore
-/README.md      export-ignore

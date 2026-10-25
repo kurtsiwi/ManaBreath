@@ -9,5 +9,4 @@ manual-changelog:
 ignore:
   - .github
   - tests
-  - README.md
   - MANABREATH_CONTEXTO.md

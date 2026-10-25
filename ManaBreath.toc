@@ -1,7 +1,8 @@
 ## Interface: 16001
 ## Title: ManaBreath
-## Notes: Indica cuando esta activa la regla de 5 segundos de regeneracion de mana.
+## Notes: Shows when the 5-second mana regeneration rule is active.
 ## Notes-esES: Indica cuándo está activa la regla de 5 segundos de regeneración de maná.
+## Notes-esMX: Indica cuándo está activa la regla de 5 segundos de regeneración de maná.
 ## Author: kurtsiwi
 ## Version: 1.0.0
 ## Category: Combat
