@@ -16,6 +16,14 @@ local FADE_DURATION = 0.5
 local LABEL = "5SR"
 local DONE_TEXT = "regen"
 
+-- La ventana es fija (0.0 - 5.0), asi que las 51 cadenas posibles del contador
+-- se construyen una sola vez al cargar. Con esto el OnUpdate no asigna nada:
+-- un string.format por frame generaria basura 60 veces por segundo.
+local TENTH_TEXT = {}
+for i = 0, math.floor(MB.RULE_DURATION * 10) do
+    TENTH_TEXT[i] = string.format("%.1f", i / 10)
+end
+
 function D:Init()
     if self.frame then return end
 
@@ -65,9 +73,12 @@ function D:Init()
         D:SavePosition()
     end)
 
-    f:SetScript("OnUpdate", function(_, elapsed)
+    -- El OnUpdate solo esta instalado mientras hay algo que animar, asi que la
+    -- barra visible pero en reposo (desbloqueada o con `/mb always on`) no
+    -- cuesta nada por frame.
+    self.onUpdate = function(_, elapsed)
         D:OnUpdate(elapsed)
-    end)
+    end
 
     self.frame = f
     self.bar = bar
@@ -125,16 +136,25 @@ function D:UpdateShown()
     self.frame:SetShown(show)
 end
 
+function D:SetUpdating(enabled)
+    if enabled == self.updating then return end
+    self.updating = enabled
+    self.frame:SetScript("OnUpdate", enabled and self.onUpdate or nil)
+end
+
 function D:Start(startedAt, expires)
     if not self.frame then return end
     self.startedAt = startedAt
     self.expires = expires
     self.state = "active"
     self.holdLeft = nil
+    self.shownTenths = nil
+    self.sparkOffset = nil
     self.frame:SetAlpha(1)
     self.bar:SetStatusBarColor(unpack(COLOR_ACTIVE))
     self.spark:SetShown(true)
     self.frame:Show()
+    self:SetUpdating(true)
 end
 
 function D:Finish()
@@ -154,10 +174,13 @@ function D:Reset()
     if not self.frame then return end
     self.state = "idle"
     self.holdLeft = nil
+    self.shownTenths = nil
+    self.sparkOffset = nil
     self.frame:SetAlpha(1)
     self.bar:SetValue(0)
     self.timeText:SetText("")
     self.spark:Hide()
+    self:SetUpdating(false)
     self:UpdateShown()
 end
 
@@ -171,11 +194,24 @@ function D:OnUpdate(elapsed)
 
         local filled = MB.RULE_DURATION - remaining
         self.bar:SetValue(filled)
-        self.timeText:SetText(string.format("%.1f", remaining))
 
-        local width = self.bar:GetWidth()
-        self.spark:ClearAllPoints()
-        self.spark:SetPoint("CENTER", self.bar, "LEFT", (filled / MB.RULE_DURATION) * width, 0)
+        -- Texto y chispa solo cambian cuando hay algo nuevo que mostrar: a 60
+        -- fps el contador cambia 10 veces por segundo y la chispa se mueve un
+        -- pixel cada varios frames. Sin esto serian 60 SetText y 60 SetPoint
+        -- por segundo para el mismo resultado visible.
+        local tenths = math.floor(remaining * 10)
+        if tenths ~= self.shownTenths then
+            self.shownTenths = tenths
+            self.timeText:SetText(TENTH_TEXT[tenths] or "")
+        end
+
+        local offset = math.floor((filled / MB.RULE_DURATION) * self.bar:GetWidth())
+        if offset ~= self.sparkOffset then
+            self.sparkOffset = offset
+            -- Siempre es el mismo anclaje, asi que SetPoint lo reemplaza y no
+            -- hace falta ClearAllPoints.
+            self.spark:SetPoint("CENTER", self.bar, "LEFT", offset, 0)
+        end
 
     elseif self.state == "done" then
         self.holdLeft = self.holdLeft - elapsed

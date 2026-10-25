@@ -96,6 +96,38 @@ tipo de cliente concreto (`Mainline`, `Classic`, …) y no está confirmado cuá
 reporta Forever: si se pusiera el valor equivocado, el addon simplemente no
 cargaría.
 
+## Eficiencia y memoria
+
+Medido fuera del juego con `lua tests/bench.lua`:
+
+| | |
+| --- | --- |
+| Huella estática (cargado e inicializado) | ~47 KB |
+| En reposo, barra oculta | **0 bytes/frame, sin `OnUpdate` instalado** |
+| Barra visible pero en reposo (`/mb always on`) | **0 bytes/frame, sin `OnUpdate` instalado** |
+| Barra activa a 60 fps | ~1 byte/frame |
+| Ciclo completo de 5 s | ~0,5 KB |
+| `UNIT_POWER_UPDATE` | sin basura medible |
+| Por casteo | ~13 bytes |
+| Deriva tras 200 ciclos + 400 casteos + 2000 `UNIT_POWER_UPDATE` | **−0,04 KB (sin fuga)** |
+
+Tres decisiones explican esos números:
+
+- **El `OnUpdate` solo está instalado mientras hay algo que animar.** Se pone
+  al arrancar el contador y se quita al acabar el fundido. En reposo el addon
+  no ejecuta nada por frame, ni siquiera con la barra visible.
+- **El contador no construye cadenas.** La ventana es fija (0,0–5,0), así que
+  las 51 cadenas posibles se precalculan al cargar. Un `string.format` por
+  frame generaría basura 60 veces por segundo.
+- **Texto y chispa solo se actualizan cuando cambian.** A 60 fps el contador
+  cambia 10 veces por segundo y la chispa se mueve un píxel cada varios
+  frames; el resto de los `SetText` y `SetPoint` serían trabajo invisible.
+
+Lo único que asigna de forma inevitable es `C_Spell.GetSpellPowerCost`, que
+devuelve una tabla nueva en cada llamada. Son ~13 bytes por casteo y **no se
+cachea a propósito**: una aura tipo Clearcasting puede dejar un hechizo gratis,
+y un coste cacheado arrancaría la regla en un casteo que no gastó maná.
+
 ## Verificar en el juego (pendiente hasta el lanzamiento)
 
 - [ ] `/dump select(4, GetBuildInfo())` — confirmar que la interfaz es `16001`.
@@ -120,7 +152,15 @@ lua tests/run.lua
 
 Cubren el arranque y reinicio del contador, canalizaciones, deduplicación por
 `castGUID`, Secret Values, contexto restringido (con y sin
-`C_RestrictedActions`), clases y formas sin maná, y todos los comandos.
+`C_RestrictedActions`), clases y formas sin maná, y todos los comandos. El
+mock hace que tocar un valor secreto lance error, igual que WoW, así que una
+guarda `issecretvalue()` que falte sale como fallo y no pasa inadvertida.
+
+El banco de memoria va aparte:
+
+```
+lua tests/bench.lua
+```
 
 ## Licencia
 

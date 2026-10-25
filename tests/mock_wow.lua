@@ -36,17 +36,51 @@ M.costs = {
     [400] = "secret",                                   -- costo protegido
 }
 
-local SECRET = setmetatable({}, { __name = "secret" })
+-- Un valor secreto fiel: en WoW, tocarlo desde codigo de addon es un error.
+-- Si el addon hace tostring, concatena, compara o calcula con uno, los tests
+-- revientan en vez de pasar por casualidad.
+local function boom(what)
+    return function() error(what .. " sobre un valor secreto", 2) end
+end
+
+local SECRET = setmetatable({ __isSecret = true }, {
+    __name     = "secret",
+    __tostring = boom("tostring"),
+    __concat   = boom("concatenacion"),
+    __add      = boom("aritmetica"),
+    __sub      = boom("aritmetica"),
+    __mul      = boom("aritmetica"),
+    __div      = boom("aritmetica"),
+    __mod      = boom("aritmetica"),
+    __pow      = boom("aritmetica"),
+    __unm      = boom("aritmetica"),
+    __lt       = boom("comparacion"),
+    __le       = boom("comparacion"),
+    __len      = boom("longitud"),
+})
 M.SECRET = SECRET
-function issecretvalue(v) return v == SECRET end
+
+-- rawget, no ==, para no disparar __eq con tablas normales.
+function issecretvalue(v)
+    return type(v) == "table" and rawget(v, "__isSecret") == true
+end
 
 C_Spell = {
+    -- Devuelve una tabla nueva en cada llamada, como el API real: asi
+    -- tests/bench.lua mide la asignacion que el addon paga de verdad.
     GetSpellPowerCost = function(spellID)
         local entry = M.costs[spellID]
         if entry == "secret" then
             return { { type = SECRET, cost = SECRET } }
         end
-        return entry
+        if not entry then return nil end
+        local copy = {}
+        for i = 1, #entry do
+            local e = entry[i]
+            copy[i] = { type = e.type, cost = e.cost, costPerSec = e.costPerSec,
+                        costPercent = e.costPercent }
+        end
+        return copy
     end,
 }
 
@@ -55,11 +89,11 @@ local frames = {}
 M.frames = frames
 
 local Frame = {}
-Frame.__index = function(t, k)
-    local v = Frame[k]
-    if v then return v end
-    -- cualquier setter desconocido es un no-op silencioso
-    return function() end
+-- Un unico no-op compartido: devolver `function() end` aqui crearia un closure
+-- por cada acceso y falsearia las mediciones de tests/bench.lua.
+local function noop() end
+Frame.__index = function(_, k)
+    return Frame[k] or noop
 end
 
 local function newFrame(kind, name)

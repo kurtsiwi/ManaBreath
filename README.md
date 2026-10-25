@@ -95,6 +95,38 @@ to one specific client type (`Mainline`, `Classic`, …) and it is not confirmed
 which one Forever reports — with the wrong value the addon would simply fail to
 load.
 
+## Efficiency and memory
+
+Measured outside the game with `lua tests/bench.lua`:
+
+| | |
+| --- | --- |
+| Static footprint (loaded and initialized) | ~47 KB |
+| Idle, bar hidden | **0 bytes/frame, no `OnUpdate` installed** |
+| Bar visible but idle (`/mb always on`) | **0 bytes/frame, no `OnUpdate` installed** |
+| Bar active at 60 fps | ~1 byte/frame |
+| One full 5 s cycle | ~0.5 KB |
+| `UNIT_POWER_UPDATE` | no measurable garbage |
+| Per cast | ~13 bytes |
+| Drift after 200 cycles + 400 casts + 2000 `UNIT_POWER_UPDATE` | **-0.04 KB (no leak)** |
+
+Three decisions account for those numbers:
+
+- **`OnUpdate` is only installed while there is something to animate.** It goes
+  on when the countdown starts and comes off when the fade ends. Idle, the
+  addon runs nothing per frame — not even with the bar visible.
+- **The counter builds no strings.** The window is fixed (0.0-5.0), so all 51
+  possible strings are precomputed at load. One `string.format` per frame would
+  generate garbage 60 times a second.
+- **Text and spark only update when they change.** At 60 fps the counter
+  changes 10 times a second and the spark moves one pixel every few frames; the
+  remaining `SetText` and `SetPoint` calls would be invisible work.
+
+The one unavoidable allocation is `C_Spell.GetSpellPowerCost`, which returns a
+fresh table on every call. That is ~13 bytes per cast and is **deliberately not
+cached**: a Clearcasting-style aura can make a spell free, and a cached cost
+would start the rule on a cast that spent no mana.
+
 ## To verify in game (pending until launch)
 
 - [ ] `/dump select(4, GetBuildInfo())` — confirm the interface is `16001`.
@@ -119,7 +151,15 @@ lua tests/run.lua
 
 They cover starting and restarting the countdown, channels, `castGUID`
 deduplication, Secret Values, restricted context (with and without
-`C_RestrictedActions`), classes and forms without mana, and every command.
+`C_RestrictedActions`), classes and forms without mana, and every command. The
+mock makes touching a secret value raise an error, just like WoW, so a missing
+`issecretvalue()` guard shows up as a failure instead of slipping through.
+
+The memory benchmark is separate:
+
+```
+lua tests/bench.lua
+```
 
 ## License
 

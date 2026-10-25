@@ -186,5 +186,54 @@ MOCK.noRestrictionApi = false
 MOCK:fire("PLAYER_ENTERING_WORLD")
 check("se recupera la api", MB.restrictionApi, true)
 
+print("\n-- eficiencia: OnUpdate solo cuando hay algo que animar --")
+MB:Cancel()
+check("en reposo no hay OnUpdate", D.frame:GetScript("OnUpdate"), nil)
+MOCK:fire("UNIT_SPELLCAST_SUCCEEDED", "player", "cast-upd", 100)
+check("activa instala OnUpdate", type(D.frame:GetScript("OnUpdate")), "function")
+MOCK:advance(6.5)
+check("tras el fundido se desinstala", D.frame:GetScript("OnUpdate"), nil)
+
+ManaBreathDB.alwaysShow = true
+D:UpdateShown()
+check("barra siempre visible pero en reposo", D.frame:IsShown(), true)
+check("y sin OnUpdate: cero coste por frame", D.frame:GetScript("OnUpdate"), nil)
+ManaBreathDB.alwaysShow = false
+D:UpdateShown()
+
+print("\n-- el contador muestra decimas sin asignar cadenas --")
+MOCK:fire("UNIT_SPELLCAST_SUCCEEDED", "player", "cast-txt", 100)
+MOCK:advance(0.5, 1 / 60)
+check("texto a los 0.5 s", D.timeText:GetText(), "4.5")
+MOCK:advance(2.0, 1 / 60)
+check("texto a los 2.5 s", D.timeText:GetText(), "2.5")
+MOCK:advance(3.0, 1 / 60)
+check("texto al terminar", D.timeText:GetText(), "regen")
+MB:Cancel()
+
+print("\n-- un spellID secreto no se puede tocar --")
+-- El mock hace que tostring, concatenar, comparar o calcular con un valor
+-- secreto lance error, igual que WoW. Esto cubre el caso de la checklist:
+-- que UNIT_SPELLCAST_SUCCEEDED entregue el spellID protegido en combate.
+ManaBreathDB.debug = nil
+local okSecret = pcall(function()
+    MOCK:fire("UNIT_SPELLCAST_SUCCEEDED", "player", "cast-sec1", MOCK.SECRET)
+end)
+check("spellID secreto, debug off", okSecret, true)
+check("sin coste legible no arranca sola", MB:IsActive(), false)
+
+ManaBreathDB.debug = true
+okSecret = pcall(function()
+    MOCK:fire("UNIT_SPELLCAST_SUCCEEDED", "player", "cast-sec2", MOCK.SECRET)
+end)
+check("spellID secreto, debug on", okSecret, true)
+ManaBreathDB.debug = nil
+
+-- Y sigue detectando por la bajada de mana.
+MOCK.mana = MOCK.mana - 200
+MOCK:fire("UNIT_POWER_UPDATE", "player", "MANA")
+check("confirmado por el mana aun con spellID secreto", MB:IsActive(), true)
+MB:Cancel()
+
 print(("\n%d ok, %d fallos"):format(passes, fails))
 os.exit(fails == 0 and 0 or 1)

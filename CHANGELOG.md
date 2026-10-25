@@ -13,4 +13,9 @@ Primera versión.
 - `/mb status` informa del contexto restringido vía `C_RestrictedActions`.
 - Visible solo en clases y formas con maná.
 - Barra arrastrable, con posición y opciones guardadas en SavedVariables.
+- `OnUpdate` instalado solo mientras hay algo que animar: 0 bytes por frame en
+  reposo, incluso con la barra visible.
+- Contador sin asignaciones: las 51 cadenas de la ventana de 5 s se
+  precalculan al cargar.
+- Texto y chispa se actualizan solo cuando cambian.
 - Comandos `/mb` (lock, unlock, test, scale, size, sound, text, always, fallback, reset, status).

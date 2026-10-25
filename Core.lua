@@ -156,7 +156,14 @@ function MB:HandleCast(castGUID, spellID)
     self.lastCastGUID = castGUID
 
     local verdict = SpellManaCost(spellID)
-    self:Debug("cast", tostring(spellID), verdict)
+
+    -- La guarda va aqui, no dentro de Debug: los argumentos se evaluan antes
+    -- de la llamada, asi que fuera de debug no se construye ninguna cadena.
+    -- Y tostring() sobre un valor secreto lanza error, de ahi el IsSecret.
+    if self:GetDB().debug then
+        self:Debug("cast", IsSecret(spellID) and "<secreto>" or spellID, verdict)
+    end
+
     if verdict == "yes" then
         self:Start()
     elseif verdict == "unknown" then
