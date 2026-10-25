@@ -40,7 +40,7 @@ colocarla:
 | `/mb channel on/off` | Reiniciar el contador al cortar una canalización |
 | `/mb verify` | Mide contra el cliente si la regla de 5 s existe de verdad |
 | `/mb debug on/off` | Imprime el costo leído de cada casteo |
-| `/mb status` | Estado actual, incluido el contexto restringido |
+| `/mb status` | Estado actual, el contexto restringido y de dónde se leen los costes |
 | `/mb reset` | Vuelve a los valores por defecto |
 
 `/manabreath` funciona como alias de `/mb`.
@@ -61,10 +61,11 @@ del combat log:
    mientras dura el canal. Como una canalización dispara `SUCCEEDED` y
    `CHANNEL_START` a la vez, el addon descarta el duplicado comparando el
    `castGUID`, que nunca es secreto.
-3. **Costes condicionados** — una entrada de coste con `hasRequiredAura` solo
-   aplica si cierta aura está presente, así que no cuenta como coste seguro y
-   se confirma mirando el maná. Sin esto, un hechizo que un aura dejó gratis
-   arrancaría la regla sin que hubieras gastado nada.
+3. **Costes condicionados** — una entrada con `hasRequiredAura` solo aplica si
+   cierta aura está presente (normalmente de especialización o de forma), así
+   que no cuenta como coste seguro y se confirma mirando el maná. Y si el API
+   devuelve `nil` o una tabla vacía, el hechizo no cuesta recursos: eso es un
+   "no", no un "no se pudo leer".
 4. **Secret Values** — si el coste llega protegido, el addon confirma el gasto
    solo si el maná baja dentro de ~0,35 s. La ventana es **simétrica**: no está
    garantizado el orden en que el cliente entrega `UNIT_POWER_UPDATE` y
@@ -192,6 +193,12 @@ y un coste cacheado arrancaría la regla en un casteo que no gastó maná.
       `_classic_beta_\Interface\AddOns\`).
 
 ## Desarrollo
+
+El repo trae un `.luarc.json` que declara los globales de la API de WoW y fija
+el runtime en Lua 5.1. Sin él, el servidor de lenguaje marca las 44
+referencias a la API como indefinidas y avisa de `unpack` como obsoleto,
+ruido que tapa cualquier aviso de verdad. No se empaqueta.
+
 
 Las pruebas corren fuera del juego, contra una API falsa de WoW:
 

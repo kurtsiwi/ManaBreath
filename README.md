@@ -39,7 +39,7 @@ To position it:
 | `/mb channel on/off` | Restart the countdown when a channel is cut |
 | `/mb verify` | Measure against the client whether the 5 s rule really exists |
 | `/mb debug on/off` | Print the cost read for every cast |
-| `/mb status` | Current state, including restricted context |
+| `/mb status` | Current state, restricted context and where costs are read from |
 | `/mb reset` | Restore defaults |
 
 `/manabreath` works as an alias for `/mb`.
@@ -60,10 +60,11 @@ rely on the combat log:
    long as the channel lasts. Since a channel fires both `SUCCEEDED` and
    `CHANNEL_START` at once, the addon discards the duplicate by comparing
    `castGUID`, which is never secret.
-3. **Conditional costs** — a cost entry carrying `hasRequiredAura` only applies
-   while a given aura is up, so it does not count as a certain cost and is
-   confirmed against mana instead. Without this, a spell an aura made free
-   would start the rule even though nothing was spent.
+3. **Conditional costs** — an entry carrying `hasRequiredAura` only applies
+   while a given aura is up (usually a spec or shapeshift form aura), so it
+   does not count as a certain cost and is confirmed against mana instead. And
+   if the API returns `nil` or an empty table, the spell costs no resources:
+   that is a "no", not an "unreadable".
 4. **Secret Values** — if the cost arrives protected, the addon confirms the
    expense only if mana drops within ~0.35 s. The window is **symmetric**: the
    order in which the client delivers `UNIT_POWER_UPDATE` and
@@ -166,8 +167,9 @@ for being able to measure instead of assume.
 
 The one unavoidable allocation is `C_Spell.GetSpellPowerCost`, which returns a
 fresh table on every call. That is a few bytes per cast and is **deliberately
-not cached**: a Clearcasting-style aura can make a spell free, and a cached cost
-would start the rule on a cast that spent no mana.
+not cached**: the API reflects resource discounts applied by auras, so the value
+changes over time. A Clearcasting-style aura makes the spell free and the API
+reports it; a cached cost would start the rule on a cast that spent no mana.
 
 ## To verify in game (pending until launch)
 
@@ -190,6 +192,12 @@ would start the rule on a cast that spent no mana.
       `_classic_beta_\Interface\AddOns\`).
 
 ## Development
+
+The repo ships a `.luarc.json` declaring the WoW API globals and pinning the
+runtime to Lua 5.1. Without it the language server flags all 44 API references
+as undefined and warns about `unpack` being deprecated — noise that buries any
+real warning. It is not packaged.
+
 
 The tests run outside the game, against a fake WoW API:
 

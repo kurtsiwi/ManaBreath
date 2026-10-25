@@ -44,7 +44,17 @@ local function SafeNumber(value)
     return value
 end
 
+-- C_Spell.GetSpellPowerCost es la forma de 12.0; el global suelto es la
+-- heredada. Si ninguna existe, SpellManaCost devuelve "unknown" siempre y el
+-- addon queda dependiendo de la confirmacion por mana, asi que se recuerda
+-- cual se encontro para poder decirlo en `/mb status` en vez de degradarse en
+-- silencio.
 local GetPowerCost = (C_Spell and C_Spell.GetSpellPowerCost) or _G.GetSpellPowerCost
+
+MB.costApi = ((C_Spell and C_Spell.GetSpellPowerCost) and "C_Spell.GetSpellPowerCost")
+    or (_G.GetSpellPowerCost and "GetSpellPowerCost (global heredado)")
+    or nil
+
 local MANA = (Enum and Enum.PowerType and Enum.PowerType.Mana) or 0
 
 -- Devuelve "yes", "no" o "unknown": "unknown" significa que el costo no se
@@ -54,7 +64,16 @@ local function SpellManaCost(spellID)
     if spellID == nil or IsSecret(spellID) then return "unknown" end
 
     local ok, costs = pcall(GetPowerCost, spellID)
-    if not ok or type(costs) ~= "table" then return "unknown" end
+    if not ok then return "unknown" end
+
+    -- El API devuelve nil cuando el hechizo no cuesta recursos (la version
+    -- heredada devuelve una tabla vacia, que el bucle de abajo resuelve como
+    -- "no"). Para un hechizo que acabas de lanzar con exito, nil significa "no
+    -- gasto mana", no "no se pudo leer": devolver "unknown" aqui armaria la
+    -- ventana de confirmacion, y un instantaneo gratis podria entonces
+    -- reclamar la bajada de mana de un casteo anterior.
+    if costs == nil then return "no" end
+    if type(costs) ~= "table" then return "unknown" end
 
     local maybeMana = false
     for i = 1, #costs do

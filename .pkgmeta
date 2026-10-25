@@ -8,5 +8,6 @@ manual-changelog:
 
 ignore:
   - .github
+  - .luarc.json
   - tests
   - MANABREATH_CONTEXTO.md

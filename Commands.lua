@@ -140,6 +140,13 @@ handlers.status = function()
         :format(tostring(db.locked), tostring(db.scale), tostring(db.sound),
                 tostring(db.powerFallback), tostring(db.channelRestart)))
 
+    if MB.costApi then
+        MB:Print("lectura de costes: " .. MB.costApi)
+    else
+        MB:Print("lectura de costes: |cffff5555ninguna disponible|r")
+        MB:Print("todo casteo quedara en 'unknown' y dependera del mana.")
+    end
+
     MB:UpdateRestrictionState()
     if MB.restrictionApi then
         MB:Print(("contexto restringido: %s"):format(MB.restricted and "si" or "no"))

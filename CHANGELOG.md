@@ -25,4 +25,8 @@ Primera versión.
 - `/mb channel off` desactiva el reinicio al cortar una canalización.
 - `/mb verify` mide contra el cliente si la regla de 5 s existe y cuánto dura,
   usando `GetPowerRegen()` como referencia.
+- Un coste `nil` se interpreta como "sin coste de recursos" y no como
+  "ilegible", así que un instantáneo gratis no reclama una bajada de maná ajena.
+- `/mb status` informa de qué API de costes se encontró, para que la falta de
+  las dos no degrade el addon en silencio.
 - Comandos `/mb` (lock, unlock, test, scale, size, sound, text, always, fallback, reset, status).

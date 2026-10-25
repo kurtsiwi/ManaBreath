@@ -334,5 +334,21 @@ MOCK.regenPerSec = 0
 MB.Print = realPrint
 MB:Cancel()
 
+print("\n-- coste nil = sin coste, no = ilegible --")
+-- El API devuelve nil para un hechizo sin coste de recursos. Tratarlo como
+-- "unknown" armaba la ventana de confirmacion, y entonces un instantaneo
+-- gratis lanzado justo despues de un gasto real reclamaba esa bajada de mana.
+-- Solo era peligroso desde que la ventana es simetrica.
+MB:Cancel()
+MOCK:fire("UNIT_POWER_UPDATE", "player", "MANA")
+MOCK.mana = MOCK.mana - 300
+MOCK:fire("UNIT_POWER_UPDATE", "player", "MANA")
+MOCK:fire("UNIT_SPELLCAST_SUCCEEDED", "player", "gratis-1", 999)
+check("un instantaneo gratis no reclama la bajada", MB:IsActive(), false)
+MB:Cancel()
+
+print("\n-- se sabe de donde se leen los costes --")
+check("costApi detectado", MB.costApi, "C_Spell.GetSpellPowerCost")
+
 print(("\n%d ok, %d fallos"):format(passes, fails))
 os.exit(fails == 0 and 0 or 1)
