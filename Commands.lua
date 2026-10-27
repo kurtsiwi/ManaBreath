@@ -21,6 +21,7 @@ end
 
 local function Help()
     MB:Print("comandos disponibles:")
+    print("  |cffffff00/mb config|r - abre el panel de opciones")
     print("  |cffffff00/mb lock|r / |cffffff00unlock|r - fija o libera el matraz")
     print("  |cffffff00/mb test|r - demo de 5 segundos")
     print("  |cffffff00/mb scale <n>|r - escala (0.5 - 3)")
@@ -39,6 +40,16 @@ local function Help()
 end
 
 local handlers = {}
+
+handlers.config = function()
+    if ns.options then
+        ns.options:Open()
+    else
+        MB:Print("panel de opciones no disponible; usa |cffffff00/mb help|r.")
+    end
+end
+
+handlers.options = function() handlers.config() end
 
 handlers.lock = function()
     local db = MB:GetDB()
@@ -101,6 +112,8 @@ handlers.glow = function(value)
         return
     end
     MB:GetDB().glow = value
+    ns.display:RefreshGlow()
+    if ns.options then ns.options:Refresh() end
     MB:Print("brillo: |cff33ff33" .. value .. "|r (" .. GLOW_MODES[value] .. ")")
 end
 
@@ -165,6 +178,7 @@ handlers.reset = function()
         db[key] = value
     end
     ns.display:ApplySettings()
+    if ns.options then ns.options:Refresh() end
     MB:Print("opciones restauradas.")
 end
 

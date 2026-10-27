@@ -35,6 +35,9 @@ MB.defaults = {
     alwaysShow = false,
     powerFallback = false,
     channelRestart = true,
+    -- Declarado, y no solo implicito, porque el panel de opciones necesita un
+    -- valor por defecto del tipo correcto para cada opcion que muestra.
+    debug = false,
 }
 
 -- Secret values (Midnight): los valores protegidos no se pueden comparar ni
@@ -301,6 +304,11 @@ events:SetScript("OnEvent", function(_, event, arg1, arg2, arg3)
         InitDB()
         if ns.display then
             ns.display:Init()
+        end
+        -- Despues de InitDB: el panel guarda directamente en ManaBreathDB, asi
+        -- que la tabla tiene que existir antes de declarar las opciones.
+        if ns.options then
+            ns.options:Init()
         end
 
     elseif event == "PLAYER_LOGIN" then

@@ -33,16 +33,27 @@ dofile(SP .. "/mock_wow.lua")
 local afterMock = settle()
 
 local ns = {}
-for _, file in ipairs({ "Core.lua", "Display.lua", "Verify.lua", "Commands.lua" }) do
+for _, file in ipairs({ "Core.lua", "Display.lua", "Verify.lua", "Commands.lua", "Options.lua" }) do
     assert(loadfile(REPO .. "/" .. file))("ManaBreath", ns)
 end
 local MB, D = ns.addon, ns.display
+-- El panel de opciones se mide aparte: se aplaza marcandolo como no
+-- disponible, se mide el addon, y luego se registra. Asi se ve cuanto cuesta
+-- una cosa que la mayoria de la gente abre una vez y no vuelve a tocar.
+ns.options.failed = "aplazado por el banco"
 MOCK:fire("ADDON_LOADED", "ManaBreath")
 MOCK:fire("PLAYER_LOGIN")
 local loaded = settle()
 
+ns.options.failed = nil
+ns.options:Init()
+local withPanel = settle()
+assert(ns.options.category, "el panel no se registro")
+
 print(("  mock de la API de WoW (no cuenta)        %10s"):format(kb(afterMock - base)))
 print(("  addon cargado y inicializado             %10s"):format(kb(loaded - afterMock)))
+print(("  panel de opciones (al registrarse)       %10s"):format(kb(withPanel - loaded)))
+print(("  total                                    %10s"):format(kb(withPanel - afterMock)))
 
 print("")
 print("== basura en caliente ==")

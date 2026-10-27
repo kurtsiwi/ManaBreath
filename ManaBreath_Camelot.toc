@@ -9,6 +9,7 @@
 ## SavedVariables: ManaBreathDB
 ## AllowAddOnTableAccess: 0
 ## IconTexture: Interface\AddOns\ManaBreath\Art\Icon
+## AddonCompartmentFunc: ManaBreath_OnAddonCompartmentClick
 ## X-License: MIT
 ## X-Website: https://github.com/kurtsiwi/ManaBreath
 
@@ -16,3 +17,4 @@ Core.lua
 Display.lua
 Verify.lua
 Commands.lua
+Options.lua

@@ -100,6 +100,117 @@ C_Spell = {
     end,
 }
 
+-- Settings: el API del panel de opciones, en su forma de la 11.0 en adelante.
+-- Lo que importa reproducir es que el valor vive en la tabla del addon, no en
+-- una variable del sistema, y que el tipo declarado se respeta: si el panel
+-- declara un booleano y le llega un numero, aqui revienta igual que en WoW.
+M.settings = {}
+M.settingsCategories = {}
+M.settingsOpened = nil
+
+Settings = {
+    VarType = { Boolean = "boolean", Number = "number", String = "string" },
+}
+
+function Settings.RegisterVerticalLayoutCategory(name)
+    local layout = { initializers = {} }
+    function layout:AddInitializer(init)
+        self.initializers[#self.initializers + 1] = init
+    end
+
+    local category = { name = name, settings = {}, layout = layout }
+    function category:GetID() return "cat:" .. self.name end
+
+    M.settingsCategories[#M.settingsCategories + 1] = category
+    return category, layout
+end
+
+function Settings.RegisterAddOnSetting(category, variable, key, tbl, varType, name, default)
+    assert(type(category) == "table", "categoria invalida")
+    assert(type(variable) == "string", "variable invalida")
+    assert(type(key) == "string", "clave invalida")
+    assert(type(tbl) == "table", "tabla invalida")
+    assert(varType == "boolean" or varType == "number" or varType == "string",
+        "tipo invalido: " .. tostring(varType))
+    assert(type(name) == "string", "nombre invalido")
+    assert(type(default) == varType,
+        ("el defecto de %s no es %s"):format(variable, varType))
+
+    local setting = {
+        variable = variable, key = key, tbl = tbl,
+        varType = varType, name = name, default = default,
+    }
+
+    function setting:GetValue() return self.tbl[self.key] end
+
+    function setting:SetValue(value)
+        assert(type(value) == self.varType,
+            ("%s espera %s"):format(self.variable, self.varType))
+        self.tbl[self.key] = value
+        if self.callback then self.callback(self.variable, self, value) end
+    end
+
+    M.settings[variable] = setting
+    category.settings[variable] = setting
+    return setting
+end
+
+function Settings.SetOnValueChangedCallback(variable, fn)
+    local setting = M.settings[variable]
+    assert(setting, "variable sin registrar: " .. tostring(variable))
+    setting.callback = fn
+end
+
+function Settings.CreateCheckbox(category, setting, tooltip)
+    setting.control, setting.tooltip = "checkbox", tooltip
+end
+
+function Settings.CreateSlider(category, setting, options, tooltip)
+    setting.control, setting.tooltip = "slider", tooltip
+    setting.sliderOptions = options
+end
+
+function Settings.CreateDropdown(category, setting, getOptions, tooltip)
+    setting.control, setting.tooltip = "dropdown", tooltip
+    setting.choices = getOptions()
+end
+
+function Settings.CreateSliderOptions(minValue, maxValue, step)
+    local o = { min = minValue, max = maxValue, step = step }
+    function o:SetLabelFormatter(where, fn) self.formatter = fn end
+    return o
+end
+
+function Settings.CreateControlTextContainer()
+    local c = { data = {} }
+    function c:Add(value, label, tooltip)
+        self.data[#self.data + 1] = { value = value, label = label, tooltip = tooltip }
+    end
+    function c:GetData() return self.data end
+    return c
+end
+
+function Settings.RegisterAddOnCategory(category)
+    category.registered = true
+end
+
+function Settings.OpenToCategory(id)
+    M.settingsOpened = id
+end
+
+MinimalSliderWithSteppersMixin = { Label = { Right = 2 } }
+
+function CreateSettingsListSectionHeaderInitializer(text)
+    return { kind = "header", text = text }
+end
+
+-- El quinto argumento (addSearchTags) hace que el boton salga en el buscador
+-- del panel de opciones. Se declara para que la firma sea la de verdad.
+function CreateSettingsButtonInitializer(name, buttonText, onClick, tooltip, addSearchTags)
+    return { kind = "button", name = name, text = buttonText, click = onClick,
+             tooltip = tooltip, searchTags = addSearchTags }
+end
+
 -- Frames
 local frames = {}
 M.frames = frames

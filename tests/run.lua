@@ -17,7 +17,7 @@ end
 
 -- Carga el addon como lo haria WoW: cada archivo recibe (nombre, tabla compartida)
 local ns = {}
-for _, file in ipairs({ "Core.lua", "Display.lua", "Verify.lua", "Commands.lua" }) do
+for _, file in ipairs({ "Core.lua", "Display.lua", "Verify.lua", "Commands.lua", "Options.lua" }) do
     assert(loadfile(REPO .. "/" .. file))("ManaBreath", ns)
 end
 local MB = ns.addon
@@ -262,6 +262,103 @@ check("reset restaura escala", ManaBreathDB.scale, 1)
 check("reset restaura always", ManaBreathDB.alwaysShow, false)
 slash("comando-inexistente")
 slash("")
+
+print("\n-- panel de opciones --")
+local O = ns.options
+check("panel construido", O.category ~= nil, true)
+check("sin errores al construirlo", O.failed, nil)
+check("categoria registrada en Ajustes", O.category.registered, true)
+
+local declared = 0
+for _ in pairs(O.settings) do declared = declared + 1 end
+check("opciones declaradas", declared, 10)
+
+-- Lo que importa de la forma moderna del API: el valor no vive en una variable
+-- del sistema, vive en ManaBreathDB. Si no, el panel y /mb serian dos verdades.
+check("el valor vive en ManaBreathDB", MOCK.settings.MANABREATH_SOUND.tbl, ManaBreathDB)
+check("el defecto sale de MB.defaults", MOCK.settings.MANABREATH_LOCKED.default, true)
+check("la escala es un deslizador", MOCK.settings.MANABREATH_SCALE.control, "slider")
+check("de 0.5 a 3", MOCK.settings.MANABREATH_SCALE.sliderOptions.max, 3)
+check("el brillo es un desplegable", MOCK.settings.MANABREATH_GLOW.control, "dropdown")
+check("con los tres modos", #MOCK.settings.MANABREATH_GLOW.choices, 3)
+
+-- Marcar una casilla tiene que escribir en la DB y aplicarse al momento.
+MOCK.settings.MANABREATH_ALWAYSSHOW:SetValue(true)
+check("marcarla escribe en la DB", ManaBreathDB.alwaysShow, true)
+check("y se aplica sin /reload", D.frame:IsShown(), true)
+MOCK.settings.MANABREATH_ALWAYSSHOW:SetValue(false)
+check("desmarcarla tambien", D.frame:IsShown(), false)
+
+-- Cambiar el brillo a mitad de ciclo se nota ya, no en el siguiente.
+MOCK:fire("UNIT_SPELLCAST_SUCCEEDED", "player", "opt-glow", 100)
+check("con regen no brilla durante la regla", D.glow:IsShown(), false)
+MOCK.settings.MANABREATH_GLOW:SetValue("rule")
+check("pasarlo a rule se nota en caliente", D.glow:IsShown(), true)
+MOCK.settings.MANABREATH_GLOW:SetValue("regen")
+check("y volver atras tambien", D.glow:IsShown(), false)
+MB:Cancel()
+
+-- Apagar el seguimiento desde el panel corta la fase abierta.
+MOCK.mana = 2000
+MOCK:fire("UNIT_POWER_UPDATE", "player", "MANA")
+MOCK:fire("UNIT_SPELLCAST_SUCCEEDED", "player", "opt-regen", 100)
+MOCK:advance(5.9)
+check("en regen", D.state, "regen")
+MOCK.settings.MANABREATH_HOLDREGEN:SetValue(false)
+check("apagarlo desde el panel corta la fase", D.state, "fading")
+MOCK.settings.MANABREATH_HOLDREGEN:SetValue(true)
+MB:Cancel()
+MOCK.mana = MOCK.maxMana
+MOCK:fire("UNIT_POWER_UPDATE", "player", "MANA")
+
+-- Y al reves: un /mb tiene que dejar el panel al dia.
+slash("glow off")
+check("un comando actualiza el panel", MOCK.settings.MANABREATH_GLOW:GetValue(), "off")
+slash("glow regen")
+
+MOCK.settingsOpened = nil
+slash("config")
+check("/mb config abre el panel", MOCK.settingsOpened, O.category:GetID())
+MOCK.settingsOpened = nil
+ManaBreath_OnAddonCompartmentClick()
+check("el boton del compartimento tambien", MOCK.settingsOpened, O.category:GetID())
+
+print("\n-- el panel es un extra: sin el, el addon entero sigue --")
+-- Copia solo los metodos: asi Init() arranca de cero sin heredar la categoria
+-- que ya se construyo arriba.
+local function probe()
+    local p = {}
+    for key, value in pairs(O) do
+        if type(value) == "function" then p[key] = value end
+    end
+    return p
+end
+
+local realSettings = Settings
+Settings = nil
+local sinApi = probe()
+sinApi:Init()
+check("sin API de Ajustes no revienta", sinApi.failed ~= nil, true)
+check("y no deja panel a medias", sinApi.category, nil)
+check("abrirlo avisa en vez de fallar", sinApi:Open(), false)
+Settings = realSettings
+
+-- Un cliente con un API de otra forma: lo que no puede pasar es que el error
+-- suba y se lleve por delante el ADDON_LOADED del addon.
+local realRegister = Settings.RegisterAddOnSetting
+Settings.RegisterAddOnSetting = function() error("otra firma") end
+local otraFirma = probe()
+otraFirma:Init()
+check("una firma distinta degrada", otraFirma.category, nil)
+check("y queda el motivo apuntado", otraFirma.failed ~= nil, true)
+Settings.RegisterAddOnSetting = realRegister
+
+check("el matraz sigue funcionando sin panel", (function()
+    MOCK:fire("UNIT_SPELLCAST_SUCCEEDED", "player", "opt-sin-panel", 100)
+    local ok = MB:IsActive() and D.frame:IsShown()
+    MB:Cancel()
+    return ok
+end)(), true)
 
 print("\n-- castGUID: no procesar dos veces el mismo casteo --")
 -- Una canalizacion dispara SUCCEEDED y CHANNEL_START con el mismo castGUID.

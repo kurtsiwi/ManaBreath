@@ -314,6 +314,18 @@ function D:SetGlow(enabled, color)
     self.glow:SetShown(enabled)
 end
 
+-- Releer la opcion del brillo en caliente. Sin esto, cambiarla a mitad de un
+-- ciclo no se notaba hasta el siguiente, que parece que el mando no funciona.
+function D:RefreshGlow()
+    if not self.frame then return end
+    local mode = MB:GetDB().glow
+    if self.state == "active" then
+        self:SetGlow(mode == "rule", COLOR_ACTIVE)
+    elseif self.state == "done" or self.state == "regen" then
+        self:SetGlow(mode == "regen", COLOR_DONE)
+    end
+end
+
 function D:ShowBubbles(enabled)
     if enabled == self.bubbling then return end
     self.bubbling = enabled

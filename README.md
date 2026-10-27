@@ -58,10 +58,26 @@ nothing. By default (`/mb glow regen`) it lights the green one, the only phase
 where you are actually getting mana back; `/mb glow rule` moves it to the
 5 seconds of the rule, and `/mb glow off` turns it off.
 
+### Configuration
+
+Everything can be set two ways, and both write to the same place:
+
+- **Options → AddOns → ManaBreath**, or `/mb config`, or the addon compartment
+  button next to the minimap. The panel is drawn by the game itself from the
+  settings the addon declares, so there is no bespoke UI to look out of place.
+- **Slash commands**, the path that never fails. If this client did not expose
+  the settings API, the addon registers no panel, says so when you try to open
+  it, and keeps working entirely through `/mb`.
+
+Changes apply immediately, with no `/reload`, and in both directions: a
+`/mb glow rule` updates the panel's dropdown, and ticking a box shows up on the
+flask even mid-rule.
+
 ### Commands
 
 | Command | What it does |
 | --- | --- |
+| `/mb config` | Open the options panel |
 | `/mb lock` / `/mb unlock` | Pin or release the flask |
 | `/mb test` | 5-second demo |
 | `/mb scale <0.5 - 3>` | Flask scale — the right way to resize it |
@@ -180,7 +196,7 @@ which shifts with the size of the heap. The bench measured that way up to
 
 | | |
 | --- | --- |
-| Static footprint (loaded and initialized) | ~82 KB |
+| Static footprint (loaded and initialized) | ~95 KB, plus ~10 KB once the panel registers |
 | Idle, flask hidden | **0 bytes/frame, no `OnUpdate` installed** |
 | Flask visible but idle (`/mb always on`) | **0 bytes/frame, no `OnUpdate` installed** |
 | 600 frames of the blue phase | **0 bytes** |
@@ -214,9 +230,14 @@ Four decisions account for those numbers:
   and the percentage only when the integer does. The per-tick flash colour is
   computed into a table that gets reused.
 
-Of those ~82 KB, about 8 KB is `Verify.lua`, which is only used once to check
-the rule in game. That is a conscious call: it costs resident memory in return
-for being able to measure instead of assume.
+Of those ~105 KB, about 8 KB is `Verify.lua`, which is only used once to check
+the rule in game, and about 23 KB is the options panel: ~13 KB of `Options.lua`
+and ~10 KB of the objects the settings system creates when the ten settings are
+declared. Both are conscious calls of the same kind: resident memory in return
+for an addon you can measure and configure without reading the README. If those
+23 KB ever got in the way, dropping `Options.lua` from the `.toc` returns the
+addon to ~82 KB and nothing else changes — the commands do not depend on the
+panel.
 
 The one unavoidable allocation is `C_Spell.GetSpellPowerCost`, which returns a
 fresh table on every call. That is ~320 bytes per cast and is **deliberately
@@ -271,6 +292,12 @@ moving both.
       is built from the addon name.
 - [ ] Confirm the `MaskTexture` clips the liquid. If the liquid shows up as a
       rectangle sticking out of the glass, the mask did not load.
+- [ ] Confirm the panel shows up under Options → AddOns and that the controls
+      actually move the settings. The settings API landed in 10.0 and its
+      signature changed in 11.0; the addon assumes the modern one and, if that
+      is not it, registers no panel and says so via `/mb config`. If that
+      happens, `O:Register` in `Options.lua` is the single place that depends
+      on the signature.
 - [ ] Confirm the green phase really tracks mana: that the percentage climbs
       with every tick, that the flask goes out when mana fills up, and that
       `PLAYER_REGEN_ENABLED` ends it when you leave combat. If the client does

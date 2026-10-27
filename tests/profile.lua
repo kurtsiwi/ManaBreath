@@ -22,7 +22,7 @@ local realUnitPowerMax = UnitPowerMax
 UnitPowerMax = function(...) bump("UnitPowerMax") return realUnitPowerMax(...) end
 
 local ns = {}
-for _, file in ipairs({ "Core.lua", "Display.lua", "Verify.lua", "Commands.lua" }) do
+for _, file in ipairs({ "Core.lua", "Display.lua", "Verify.lua", "Commands.lua", "Options.lua" }) do
     assert(loadfile(REPO .. "/" .. file))("ManaBreath", ns)
 end
 local MB, D = ns.addon, ns.display

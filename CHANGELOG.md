@@ -37,6 +37,15 @@
   de la 1.0, cuando la cifra real es ~320, toda ella la tabla que devuelve
   `C_Spell.GetSpellPowerCost`. Los frames, en cambio, son cero de verdad.
 - Nuevo `tests/profile.lua`: cuenta llamadas al API por frame en cada fase.
+- **Panel de opciones** en Opciones → AddOns, con `/mb config` y botón en el
+  compartimento de addons. Lo dibuja el juego a partir de las opciones que el
+  addon declara, y el valor vive en `ManaBreathDB`, así que el panel y los
+  comandos no pueden desincronizarse. Si este cliente no expusiera el API de
+  ajustes, no se registra panel y todo sigue por `/mb`.
+- El modo de brillo se aplica en caliente (`RefreshGlow`): antes, cambiarlo a
+  mitad de un ciclo no se notaba hasta el siguiente.
+- `debug` pasa a estar declarado en los valores por defecto. El panel necesita
+  un valor por defecto del tipo correcto para cada opción que muestra.
 
 ## 1.0.0
 

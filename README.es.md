@@ -58,10 +58,27 @@ sin decir nada. Por defecto (`/mb glow regen`) alumbra la verde, que es la únic
 en la que de verdad estás recuperando maná; `/mb glow rule` lo pasa a los
 5 segundos de la regla y `/mb glow off` lo apaga.
 
+### Configuración
+
+Todo se puede configurar de dos maneras, y las dos escriben en el mismo sitio:
+
+- **Opciones → AddOns → ManaBreath**, o `/mb config`, o el botón del
+  compartimento de addons junto al minimapa. El panel lo dibuja el propio juego
+  a partir de las opciones que el addon declara, así que no hay una interfaz
+  propia que se vea fuera de lugar.
+- **Comandos de barra**, la vía que nunca falla. Si este cliente no expusiera
+  el API de ajustes, el addon no registra panel, lo dice al abrirlo y sigue
+  funcionando entero por `/mb`.
+
+Los cambios se aplican al momento, sin `/reload`, y en los dos sentidos: un
+`/mb glow rule` deja el desplegable del panel al día, y marcar una casilla se
+nota en el matraz aunque la regla esté corriendo.
+
 ### Comandos
 
 | Comando | Qué hace |
 | --- | --- |
+| `/mb config` | Abre el panel de opciones |
 | `/mb lock` / `/mb unlock` | Fija o libera el matraz |
 | `/mb test` | Demo de 5 segundos |
 | `/mb scale <0.5 - 3>` | Escala del matraz: la forma correcta de agrandarlo |
@@ -181,7 +198,7 @@ por casteo cuando la cifra real es 320.
 
 | | |
 | --- | --- |
-| Huella estática (cargado e inicializado) | ~82 KB |
+| Huella estática (cargado e inicializado) | ~95 KB, más ~10 KB al registrar el panel |
 | En reposo, matraz oculto | **0 bytes/frame, sin `OnUpdate` instalado** |
 | Matraz visible pero en reposo (`/mb always on`) | **0 bytes/frame, sin `OnUpdate` instalado** |
 | 600 frames de fase azul | **0 bytes** |
@@ -215,9 +232,14 @@ Cuatro decisiones explican esos números:
   cambia la décima, y el porcentaje solo cuando cambia el entero. El color del
   destello de cada tick se calcula sobre una tabla que se reutiliza.
 
-De esos ~82 KB, unos 8 KB son `Verify.lua`, que solo se usa una vez para
-comprobar la regla en el juego. Es una decisión consciente: cuesta memoria
-residente a cambio de poder medir en vez de suponer.
+De esos ~105 KB, unos 8 KB son `Verify.lua`, que solo se usa una vez para
+comprobar la regla en el juego, y unos 23 KB son el panel de opciones: ~13 KB
+de `Options.lua` y ~10 KB de los objetos que el sistema de ajustes crea al
+declarar las diez opciones. Las dos son decisiones conscientes y del mismo
+tipo: memoria residente a cambio de que el addon se pueda medir y configurar
+sin leerse el README. Si alguna vez esos 23 KB molestaran, quitar `Options.lua`
+del `.toc` devuelve el addon a ~82 KB sin tocar nada más: los comandos no
+dependen del panel.
 
 Lo único que asigna de forma inevitable es `C_Spell.GetSpellPowerCost`, que
 devuelve una tabla nueva en cada llamada. Son ~320 bytes por casteo y
@@ -249,6 +271,12 @@ y un coste cacheado arrancaría la regla en un casteo que no gastó maná.
       construye con el nombre del addon.
 - [ ] Confirmar que la `MaskTexture` recorta el líquido. Si el líquido sale
       como un rectángulo asomando por fuera del cristal, la máscara no cargó.
+- [ ] Confirmar que el panel aparece en Opciones → AddOns y que los controles
+      mueven de verdad las opciones. El API de ajustes es de la 10.0 y su firma
+      cambió en la 11.0; el addon asume la moderna y, si no es esa, no registra
+      panel y lo dice con `/mb config`. En ese caso hay que mirar
+      `O:Register` en `Options.lua`, que es el único punto que depende de la
+      firma.
 - [ ] Confirmar que la fase verde sigue al maná de verdad: que el porcentaje
       suba con cada tick, que el matraz se apague al llenarse el maná y que
       `PLAYER_REGEN_ENABLED` lo apague al salir de combate. Si el cliente no
