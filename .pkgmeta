@@ -10,4 +10,5 @@ ignore:
   - .github
   - .luarc.json
   - tests
+  - tools
   - MANABREATH_CONTEXTO.md

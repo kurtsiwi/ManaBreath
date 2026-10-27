@@ -39,3 +39,7 @@ luac.out
 *.x86_64
 *.hex
 
+
+# Vistas previas generadas por tools/make_art.py (los TGA de Art/ si se publican).
+/tools/preview.png
+/tools/web/

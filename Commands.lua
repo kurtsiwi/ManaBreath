@@ -21,13 +21,15 @@ end
 
 local function Help()
     MB:Print("comandos disponibles:")
-    print("  |cffffff00/mb lock|r / |cffffff00unlock|r - fija o libera la barra")
+    print("  |cffffff00/mb lock|r / |cffffff00unlock|r - fija o libera el matraz")
     print("  |cffffff00/mb test|r - demo de 5 segundos")
     print("  |cffffff00/mb scale <n>|r - escala (0.5 - 3)")
-    print("  |cffffff00/mb size <ancho> <alto>|r - tamano de la barra")
+    print("  |cffffff00/mb size <ancho> <alto>|r - tamano del matraz")
+    print("  |cffffff00/mb glow regen/rule/off|r - cuando brilla el matraz")
+    print("  |cffffff00/mb regen on/off|r - seguir el mana que vuelve tras la regla")
     print("  |cffffff00/mb sound on/off|r - aviso sonoro al terminar")
-    print("  |cffffff00/mb text on/off|r - textos de la barra")
-    print("  |cffffff00/mb always on/off|r - mostrar la barra siempre")
+    print("  |cffffff00/mb text on/off|r - contador dentro del matraz")
+    print("  |cffffff00/mb always on/off|r - mostrar el matraz siempre")
     print("  |cffffff00/mb fallback on/off|r - detectar por bajadas de mana")
     print("  |cffffff00/mb channel on/off|r - reiniciar al cortar una canalizacion")
     print("  |cffffff00/mb verify|r - mide si la regla de 5 s existe de verdad")
@@ -42,14 +44,14 @@ handlers.lock = function()
     local db = MB:GetDB()
     db.locked = true
     ns.display:ApplySettings()
-    MB:Print("barra |cff33ff33fijada|r.")
+    MB:Print("matraz |cff33ff33fijado|r.")
 end
 
 handlers.unlock = function()
     local db = MB:GetDB()
     db.locked = false
     ns.display:ApplySettings()
-    MB:Print("barra |cffffff00libre|r: arrastrala con el boton izquierdo.")
+    MB:Print("matraz |cffffff00libre|r: arrastralo con el boton izquierdo.")
 end
 
 handlers.test = function()
@@ -72,12 +74,48 @@ handlers.size = function(width, height)
     width, height = tonumber(width), tonumber(height)
     if not width or not height or width < 40 or height < 6 then
         MB:Print("uso: /mb size <ancho >= 40> <alto >= 6>")
+        MB:Print("el dibujo esta hecho para un marco cuadrado; para agrandarlo")
+        MB:Print("sin deformarlo conviene |cffffff00/mb scale|r.")
         return
     end
     local db = MB:GetDB()
     db.width, db.height = width, height
     ns.display:ApplySettings()
     MB:Print(("tamano: %dx%d"):format(width, height))
+end
+
+-- El brillo marca una sola fase, la que se elija: encenderlo en las dos lo
+-- dejaria sin decir nada.
+local GLOW_MODES = {
+    regen = "al acabar la regla, mientras el mana vuelve a subir",
+    rule = "durante los 5 segundos de la regla",
+    off = "nunca",
+}
+
+handlers.glow = function(value)
+    if not value or not GLOW_MODES[value] then
+        MB:Print("uso: /mb glow regen | rule | off")
+        for _, mode in ipairs({ "regen", "rule", "off" }) do
+            print(("  |cffffff00%s|r - %s"):format(mode, GLOW_MODES[mode]))
+        end
+        return
+    end
+    MB:GetDB().glow = value
+    MB:Print("brillo: |cff33ff33" .. value .. "|r (" .. GLOW_MODES[value] .. ")")
+end
+
+-- La fase de regen se acaba sola de tres maneras: mana lleno, salir de
+-- combate o volver a entrar en la regla. Lo dice el comando porque es la
+-- diferencia entre un aviso y un elemento fijo de la interfaz.
+handlers.regen = function(value)
+    local enabled = Toggle("holdRegen", value, "seguimiento de la regeneracion")
+    if enabled then
+        MB:Print("el matraz se queda marcando el mana que entra hasta que se")
+        MB:Print("llene, salgas de combate o vuelvas a gastar mana.")
+    else
+        MB:Print("el matraz se apagara en cuanto acabe la regla.")
+        ns.display:EndRegen()
+    end
 end
 
 handlers.sound = function(value)
@@ -136,9 +174,13 @@ handlers.status = function()
         :format(MB:UsesMana() and "si" or "no",
                 MB:IsActive() and "si" or "no",
                 MB:Remaining()))
-    MB:Print(("fijada: %s | escala: %s | sonido: %s | respaldo: %s | canal: %s")
+    MB:Print(("fijado: %s | escala: %s | sonido: %s | brillo: %s")
         :format(tostring(db.locked), tostring(db.scale), tostring(db.sound),
-                tostring(db.powerFallback), tostring(db.channelRestart)))
+                tostring(db.glow)))
+    MB:Print(("respaldo: %s | canal: %s | seguir regen: %s")
+        :format(tostring(db.powerFallback), tostring(db.channelRestart),
+                tostring(db.holdRegen)))
+    MB:Print("fase del matraz: " .. tostring(ns.display and ns.display.state))
 
     if MB.costApi then
         MB:Print("lectura de costes: " .. MB.costApi)

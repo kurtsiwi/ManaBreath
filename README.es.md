@@ -3,9 +3,10 @@
 [English](README.md) · **Español**
 
 Addon para **World of Warcraft: Forever** que muestra cuándo está activa la
-**regla de 5 segundos** de regeneración de maná (5SR): una barra se llena
-durante los 5 segundos posteriores a gastar maná y avisa cuando la
-regeneración vuelve.
+**regla de 5 segundos** de regeneración de maná (5SR): un matraz animado se
+llena durante los 5 segundos posteriores a gastar maná, lleva la cuenta atrás
+dentro del bulbo y, cuando la regla acaba, se queda encendido marcando el maná
+que entra con cada tick hasta que se llene o salgas de combate.
 
 Liviano y enfocado en una sola cosa: nada de pociones, gemas ni runas.
 
@@ -17,25 +18,59 @@ Liviano y enfocado en una sola cosa: nada de pociones, gemas ni runas.
 
 ## Uso
 
-La barra aparece sola cuando gastas maná y se oculta al terminar. Para
-colocarla:
+El matraz aparece solo cuando gastas maná y se oculta cuando ya no queda nada
+que contar. Para colocarlo:
 
 ```
-/mb unlock     arrastra la barra con el botón izquierdo
-/mb lock       la fija en su sitio
+/mb unlock     arrastra el matraz con el botón izquierdo
+/mb lock       lo fija en su sitio
 ```
+
+### Qué muestra el matraz
+
+El matraz pasa por dos fases y el color las distingue.
+
+**Azul — la regla corre.** No estás regenerando maná.
+
+| | |
+| --- | --- |
+| Nivel del líquido | Cuánto ha pasado de los 5 segundos: lleno significa que la regla terminó |
+| Número en el bulbo | Segundos que faltan, con un decimal |
+| Olas y burbujas | La regla está corriendo |
+
+**Verde — estás regenerando.** Empieza en el instante en que la regla acaba.
+
+| | |
+| --- | --- |
+| Nivel del líquido | Tu maná real, de 0 a 100 % |
+| Número en el bulbo | El porcentaje de maná |
+| Destello del líquido | Acaba de entrar un tick de regeneración |
+| **Brillo alrededor del matraz** | Estás regenerando maná |
+
+La fase verde se cierra de cuatro maneras: el maná se llena, sales de combate,
+vuelves a gastar maná (y entonces arranca otra vez la regla azul) o pasan
+4 segundos sin un solo tick. Lo último es una red de seguridad: si este cliente
+no avisa de cada tick de maná, el matraz se apaga en vez de quedarse encendido
+para siempre. Con `/mb regen off` el matraz se apaga en cuanto acaba la regla.
+
+El brillo alumbra una sola fase, la que elijas: encenderlo en las dos lo dejaría
+sin decir nada. Por defecto (`/mb glow regen`) alumbra la verde, que es la única
+en la que de verdad estás recuperando maná; `/mb glow rule` lo pasa a los
+5 segundos de la regla y `/mb glow off` lo apaga.
 
 ### Comandos
 
 | Comando | Qué hace |
 | --- | --- |
-| `/mb lock` / `/mb unlock` | Fija o libera la barra |
+| `/mb lock` / `/mb unlock` | Fija o libera el matraz |
 | `/mb test` | Demo de 5 segundos |
-| `/mb scale <0.5 - 3>` | Escala de la barra |
-| `/mb size <ancho> <alto>` | Tamaño de la barra |
+| `/mb scale <0.5 - 3>` | Escala del matraz: la forma correcta de agrandarlo |
+| `/mb size <ancho> <alto>` | Tamaño del marco; el dibujo supone un marco cuadrado |
 | `/mb sound on/off` | Aviso sonoro al terminar la regla |
-| `/mb text on/off` | Textos sobre la barra |
-| `/mb always on/off` | Mantener la barra siempre visible |
+| `/mb glow regen/rule/off` | Cuándo brilla el matraz |
+| `/mb regen on/off` | Seguir el maná que vuelve cuando la regla acaba |
+| `/mb text on/off` | Contador dentro del bulbo |
+| `/mb always on/off` | Mantener el matraz siempre visible |
 | `/mb fallback on/off` | Detectar también por bajadas de maná |
 | `/mb channel on/off` | Reiniciar el contador al cortar una canalización |
 | `/mb verify` | Mide contra el cliente si la regla de 5 s existe de verdad |
@@ -81,7 +116,7 @@ así que no arrancan el contador.
 
 ### Secret Values: qué toca y qué no
 
-La **barra no toca datos protegidos en ningún momento**. Se dibuja con
+El **matraz no toca datos protegidos en ningún momento**. Se dibuja con
 `GetTime()` y la constante de 5 segundos, ambos valores normales, así que no
 necesita `Curve`, `ColorCurve` ni `Duration` para pintarse.
 
@@ -108,9 +143,9 @@ no da es la **atribución**: por qué bajó el maná. Combinar casteo + coste
 resuelve la atribución para el caso normal, y eso no es una adivinanza.
 
 Sobre esa base, el addon es determinista en lo suyo: misma secuencia de eventos
-→ mismo estado, sin aleatoriedad, independiente del framerate (la barra usa
+→ mismo estado, sin aleatoriedad, independiente del framerate (el matraz usa
 diferencias de `GetTime()`, no cuenta frames) y sin deriva acumulada. Y falla
-cerrado: un coste ilegible nunca produce una barra falsa.
+cerrado: un coste ilegible nunca produce un contador falso.
 
 Lo que queda fuera de nuestro control:
 
@@ -142,11 +177,12 @@ Medido fuera del juego con `lua tests/bench.lua`:
 
 | | |
 | --- | --- |
-| Huella estática (cargado e inicializado) | ~56 KB |
-| En reposo, barra oculta | **0 bytes/frame, sin `OnUpdate` instalado** |
-| Barra visible pero en reposo (`/mb always on`) | **0 bytes/frame, sin `OnUpdate` instalado** |
-| Barra activa a 60 fps | ~1 byte/frame |
-| Ciclo completo de 5 s | ~0,18 KB |
+| Huella estática (cargado e inicializado) | ~86 KB |
+| En reposo, matraz oculto | **0 bytes/frame, sin `OnUpdate` instalado** |
+| Matraz visible pero en reposo (`/mb always on`) | **0 bytes/frame, sin `OnUpdate` instalado** |
+| Matraz animándose a 60 fps (fase azul) | ~0,5 bytes/frame |
+| Fase verde a 60 fps, siguiendo el maná | **sin basura medible** |
+| Ciclo completo de 5 s | ~0,36 KB |
 | `UNIT_POWER_UPDATE` | sin basura medible |
 | Por casteo | 3–12 bytes |
 | Deriva tras 200 ciclos + 400 casteos + 2000 `UNIT_POWER_UPDATE` | **−0,04 KB (sin fuga)** |
@@ -155,15 +191,19 @@ Tres decisiones explican esos números:
 
 - **El `OnUpdate` solo está instalado mientras hay algo que animar.** Se pone
   al arrancar el contador y se quita al acabar el fundido. En reposo el addon
-  no ejecuta nada por frame, ni siquiera con la barra visible.
-- **El contador no construye cadenas.** La ventana es fija (0,0–5,0), así que
-  las 51 cadenas posibles se precalculan al cargar. Un `string.format` por
-  frame generaría basura 60 veces por segundo.
-- **Texto y chispa solo se actualizan cuando cambian.** A 60 fps el contador
-  cambia 10 veces por segundo y la chispa se mueve un píxel cada varios
-  frames; el resto de los `SetText` y `SetPoint` serían trabajo invisible.
+  no ejecuta nada por frame, ni siquiera con el matraz visible.
+- **Ni el contador ni el porcentaje construyen cadenas.** La ventana es fija
+  (0,0–5,0) y el porcentaje va de 0 a 100, así que las 51 + 101 cadenas
+  posibles se precalculan al cargar. Un `string.format` por frame generaría
+  basura 60 veces por segundo.
+- **La animación no asigna nada.** Las burbujas son una tabla fija, sin
+  `math.random` por frame; las olas se desplazan con `SetTexCoord`; y las
+  bandas de ola cuelgan del borde superior del líquido, así que subir el nivel
+  las sube con él sin un solo `SetPoint`. El contador solo se redibuja cuando
+  cambia la décima, y el porcentaje solo cuando cambia el entero. El color del
+  destello de cada tick se calcula sobre una tabla que se reutiliza.
 
-De esos ~56 KB, unos 8 KB son `Verify.lua`, que solo se usa una vez para
+De esos ~86 KB, unos 8 KB son `Verify.lua`, que solo se usa una vez para
 comprobar la regla en el juego. Es una decisión consciente: cuesta memoria
 residente a cambio de poder medir en vez de suponer.
 
@@ -191,6 +231,40 @@ y un coste cacheado arrancaría la regla en un casteo que no gastó maná.
       Si es al empezar, `/mb channel off`.
 - [ ] Confirmar la ruta final de addons del cliente (en la beta era
       `_classic_beta_\Interface\AddOns\`).
+- [ ] Confirmar que los TGA cargan. Si el matraz sale como un damero verde y
+      negro, el cliente rechazó el formato; si no sale nada, revisar que la
+      carpeta se llame exactamente `ManaBreath`, porque la ruta del arte se
+      construye con el nombre del addon.
+- [ ] Confirmar que la `MaskTexture` recorta el líquido. Si el líquido sale
+      como un rectángulo asomando por fuera del cristal, la máscara no cargó.
+- [ ] Confirmar que la fase verde sigue al maná de verdad: que el porcentaje
+      suba con cada tick, que el matraz se apague al llenarse el maná y que
+      `PLAYER_REGEN_ENABLED` lo apague al salir de combate. Si el cliente no
+      dispara `UNIT_POWER_UPDATE` por cada tick, la fase se cerrará sola a los
+      4 segundos; en ese caso sube `REGEN_TIMEOUT` en `Display.lua`.
+
+## El arte
+
+El matraz está generado, no dibujado a mano:
+
+```
+python tools/make_art.py
+```
+
+Ese script escribe los siete TGA de `Art/` a partir de campos de distancia
+—cristal, máscara del interior, líquido, banda de ola, burbuja, halo y el icono
+de la lista de addons— y además `tools/preview.png` para mirarlos fuera del
+juego. No necesita ninguna biblioteca externa. `tools/` no se empaqueta.
+
+El líquido, las olas y las burbujas van recortados por una `MaskTexture` con la
+forma del interior del cristal, así que nada se sale del matraz por mucho que
+se cambie el tamaño del marco. Si un cliente no expone `CreateMaskTexture`, el
+addon se degrada en vez de romperse: el líquido se encoge para caber dentro del
+bulbo.
+
+Las constantes de geometría viven en dos sitios: `tools/make_art.py` y las
+constantes `FILL_*` / `GLOW_SCALE` de `Display.lua`. Mover el dibujo es mover
+los dos.
 
 ## Desarrollo
 

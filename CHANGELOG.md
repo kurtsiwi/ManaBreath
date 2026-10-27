@@ -1,5 +1,30 @@
 # Changelog
 
+## 1.1.0
+
+- La barra pasa a ser un **matraz**: el líquido sube durante los 5 segundos y
+  el contador va dentro del bulbo.
+- Superficie animada (dos capas de ola a distinta velocidad) y burbujas que
+  suben mientras la regla corre.
+- **Fase de regeneración**: al acabar la regla el matraz no se apaga, se pone
+  verde y se queda marcando el maná que entra. El líquido sigue tu maná real,
+  el número pasa a ser el porcentaje y cada tick de maná da un destello. La
+  fase se cierra al llenarse el maná, al salir de combate, al volver a gastar
+  maná (que reinicia la regla) o a los 4 segundos sin ningún tick, que es la
+  red de seguridad si el cliente no avisa de cada uno. `/mb regen off` vuelve
+  al aviso corto de la 1.0.
+- **Brillo alrededor del matraz** mientras estás regenerando, que es la fase
+  verde. `/mb glow rule` lo pasa a los 5 segundos de la regla y `/mb glow off`
+  lo apaga.
+- Arte propio, generado con `tools/make_art.py`: el líquido se recorta con una
+  `MaskTexture` con la forma del interior del cristal, así que nada se sale del
+  matraz. Sin la máscara el addon sigue funcionando con el líquido encogido.
+- Icono propio en la lista de addons.
+- Tamaño por defecto 58x58. El dibujo está pensado para un marco cuadrado:
+  para agrandarlo sin deformarlo, `/mb scale`.
+- El `OnUpdate` sigue sin asignar memoria por frame —la fase verde incluida— y
+  sigue desinstalado en reposo.
+
 ## 1.0.0
 
 Primera versión.

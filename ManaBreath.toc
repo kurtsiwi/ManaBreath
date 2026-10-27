@@ -1,14 +1,14 @@
 ## Interface: 16001
 ## Title: ManaBreath
-## Notes: Shows when the 5-second mana regeneration rule is active.
-## Notes-esES: Indica cuándo está activa la regla de 5 segundos de regeneración de maná.
-## Notes-esMX: Indica cuándo está activa la regla de 5 segundos de regeneración de maná.
+## Notes: An animated flask that shows when the 5-second mana regeneration rule is active.
+## Notes-esES: Un matraz animado que indica cuándo está activa la regla de 5 segundos de regeneración de maná.
+## Notes-esMX: Un matraz animado que indica cuándo está activa la regla de 5 segundos de regeneración de maná.
 ## Author: kurtsiwi
-## Version: 1.0.0
+## Version: 1.1.0
 ## Category: Combat
 ## SavedVariables: ManaBreathDB
 ## AllowAddOnTableAccess: 0
-## IconTexture: Interface\Icons\Spell_Frost_WizardMark
+## IconTexture: Interface\AddOns\ManaBreath\Art\Icon
 ## X-License: MIT
 ## X-Website: https://github.com/kurtsiwi/ManaBreath
 

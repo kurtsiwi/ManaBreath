@@ -136,6 +136,8 @@ function Frame:GetAlpha() return self.alpha end
 function Frame:SetValue(v) self.value = v end
 function Frame:GetValue() return self.value end
 function Frame:SetSize(w, h) self.width, self.height = w, h end
+function Frame:SetWidth(w) self.width = w end
+function Frame:SetHeight(h) self.height = h end
 function Frame:GetWidth() return self.width end
 function Frame:GetHeight() return self.height end
 function Frame:SetScale(s) self.scale = s end
@@ -143,10 +145,25 @@ function Frame:GetPoint() return self.point or "CENTER", UIParent, self.relPoint
 function Frame:SetPoint(p, rel, relP, x, y)
     if type(rel) == "table" then self.point, self.relPoint, self.x, self.y = p, relP, x, y end
 end
-function Frame:SetStatusBarColor(r, g, b) self.color = { r, g, b } end
+-- Estos tres se llaman desde el OnUpdate, asi que reutilizan la tabla: si
+-- asignaran una nueva, tests/bench.lua estaria midiendo la basura del mock.
+local function store(frame, key, ...)
+    -- rawget: el __index del mock devuelve un no-op para las claves que no
+    -- existen, asi que un frame[key] pelado nunca daria nil.
+    local t = rawget(frame, key)
+    if not t then t = {}; frame[key] = t end
+    for i = 1, select("#", ...) do t[i] = (select(i, ...)) end
+    return t
+end
+
+function Frame:SetStatusBarColor(r, g, b) store(self, "color", r, g, b) end
+function Frame:SetVertexColor(r, g, b) store(self, "color", r, g, b) end
+function Frame:SetTexCoord(l, r, t, b) store(self, "coord", l, r, t, b) end
+function Frame:GetFont() return "Fonts/FRIZQT__.TTF", 10, "" end
 function Frame:SetText(t) self.text = t end
 function Frame:GetText() return self.text end
 function Frame:CreateTexture() return newFrame("Texture") end
+function Frame:CreateMaskTexture() return newFrame("MaskTexture") end
 function Frame:CreateFontString() return newFrame("FontString") end
 function Frame:EnableMouse(v) self.mouse = v end
 

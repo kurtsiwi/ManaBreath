@@ -58,6 +58,28 @@ measure("600 frames de barra activa", 600, function()
     MB:Cancel()
 end)
 
+-- La fase de regeneracion puede quedarse varios segundos en pantalla, asi que
+-- se mide aparte. Se entra en ella ANTES de medir: lo que interesa es su coste
+-- por frame, no el de los 5 s de regla que la preceden.
+MOCK.mana = 2000
+MOCK:fire("UNIT_POWER_UPDATE", "player", "MANA")
+MOCK:fire("UNIT_SPELLCAST_SUCCEEDED", "player", "bench-regen", 100)
+MOCK:advance(5.8, FRAME)
+
+measure("600 frames de fase de regeneracion", 600, function()
+    for i = 1, 600 do
+        if i % 120 == 0 then
+            -- Un tick de mana cada 2 s, que es lo que mantiene la fase viva.
+            MOCK.mana = MOCK.mana + 100
+            MOCK:fire("UNIT_POWER_UPDATE", "player", "MANA")
+        end
+        MOCK:advance(FRAME, FRAME)
+    end
+end)
+MB:Cancel()
+MOCK.mana = 5000
+MOCK:fire("UNIT_POWER_UPDATE", "player", "MANA")
+
 -- Los castGUID se construyen ANTES de medir: concatenar dentro del bucle
 -- medido asignaria una cadena por iteracion y lo que se veria seria la
 -- basura del propio banco, no la del addon.

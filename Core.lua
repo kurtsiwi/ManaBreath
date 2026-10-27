@@ -19,12 +19,19 @@ MB.defaults = {
     relPoint = "CENTER",
     x = 0,
     y = -150,
-    width = 180,
-    height = 18,
+    width = 58,
+    height = 58,
     scale = 1,
     locked = true,
     sound = false,
     showText = true,
+    -- Cuando se enciende el halo: "regen" al acabar la regla (que es cuando
+    -- el mana vuelve a subir), "rule" durante los 5 s, "off" nunca.
+    glow = "regen",
+    -- Mantener el matraz encendido durante la regeneracion, ensenando el mana
+    -- que entra con cada tick, hasta que se llene, salgas de combate o vuelvas
+    -- a entrar en la regla.
+    holdRegen = true,
     alwaysShow = false,
     powerFallback = false,
     channelRestart = true,
@@ -119,6 +126,17 @@ end
 -- Mana actual, o nil si llega protegido. Lo usa Verify.lua.
 function MB:GetMana()
     return CurrentMana()
+end
+
+-- Mana de 0 a 1, o nil si no se puede saber. UnitPowerMax("player") no es
+-- secreto en 12.0, pero se pasa por SafeNumber igual: si algun dia lo fuera,
+-- el matraz se apagaria en vez de reventar.
+function MB:GetManaFraction()
+    local mana = CurrentMana()
+    if mana == nil then return nil end
+    local maxMana = SafeNumber(UnitPowerMax("player", MANA))
+    if maxMana == nil or maxMana <= 0 then return nil end
+    return mana / maxMana
 end
 
 function MB:Print(...)
@@ -226,7 +244,20 @@ function MB:HandlePower()
     local previous = self.lastMana
     self.lastMana = mana
 
-    if mana == nil or previous == nil or mana >= previous then return end
+    if mana == nil or previous == nil then return end
+
+    if mana > previous then
+        -- El mana sube: esto es un tick de regeneracion, y es justo lo que el
+        -- matraz ensena en la fase de regen. Fuera de esa fase no cuesta nada.
+        if ns.display then
+            -- Sin argumento a proposito: el matraz solo lee el mana si la fase
+            -- de regen esta abierta, asi que fuera de ella esto no cuesta nada.
+            ns.display:ManaTick()
+        end
+        return
+    end
+
+    if mana == previous then return end
 
     local now = GetTime()
     -- Se recuerda el instante de la bajada para el lado simetrico de la
@@ -257,6 +288,7 @@ events:RegisterEvent("ADDON_LOADED")
 events:RegisterEvent("PLAYER_LOGIN")
 events:RegisterEvent("PLAYER_ENTERING_WORLD")
 events:RegisterEvent("ZONE_CHANGED_NEW_AREA")
+events:RegisterEvent("PLAYER_REGEN_ENABLED")
 events:RegisterUnitEvent("UNIT_SPELLCAST_SUCCEEDED", "player")
 events:RegisterUnitEvent("UNIT_SPELLCAST_CHANNEL_START", "player")
 events:RegisterUnitEvent("UNIT_SPELLCAST_CHANNEL_STOP", "player")
@@ -285,6 +317,13 @@ events:SetScript("OnEvent", function(_, event, arg1, arg2, arg3)
         MB.lastDropAt = nil
         MB.pendingUntil = nil
         MB:UpdateRestrictionState()
+
+    elseif event == "PLAYER_REGEN_ENABLED" then
+        -- Sales de combate: la regla de 5 s deja de importar, asi que el
+        -- matraz se apaga aunque todavia te falte mana por recuperar.
+        if ns.display then
+            ns.display:EndRegen()
+        end
 
     elseif event == "UNIT_SPELLCAST_SUCCEEDED" or event == "UNIT_SPELLCAST_CHANNEL_START" then
         MB:HandleCast(arg2, arg3)
