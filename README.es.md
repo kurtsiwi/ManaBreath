@@ -290,6 +290,25 @@ devuelve una tabla nueva en cada llamada. Son ~320 bytes por casteo y
 **no se cachea a propósito**: una aura tipo Clearcasting puede dejar un hechizo gratis,
 y un coste cacheado arrancaría la regla en un casteo que no gastó maná.
 
+## El sonido
+
+`Sound/ManaDrop.ogg` está adaptado de **Waterdrop, de DRAGON-STUDIO**, en
+Pixabay, bajo la [Licencia de contenido de Pixabay][pixabay]. Esa licencia
+permite el uso comercial y la modificación y no exige atribución; el crédito se
+da igualmente, porque no cuesta nada y porque CurseForge pide declarar el
+origen del audio de terceros al enviar el proyecto.
+
+El archivo que se publica no es el original. Se recortó de 1,03 s a 0,60 s con
+un desvanecido de 60 ms (0,88 s eran cola casi muda, pero el decaimiento se oye
+hasta ~0,53 s, así que cortar donde apunta un detector de silencio se lo habría
+comido), se pasó a mono, se remuestreó a 44,1 kHz, se normalizó el pico de
+−12,9 dBFS a −1,3 dBFS y se recodificó en Ogg Vorbis. De 33 KB a 8,5 KB.
+
+Ogg y no MP3: el cliente acepta los dos, pero el soporte de MP3 se ha roto
+antes y, cuando falla, falla en silencio: sin error, simplemente sin sonido.
+
+[pixabay]: https://pixabay.com/service/license-summary/
+
 ## Verificar en el juego (pendiente hasta el lanzamiento)
 
 - [x] ~~Confirmar que la interfaz es `16001`.~~ Confirmado desde el cliente
@@ -350,6 +369,14 @@ forma del interior del cristal, así que nada se sale del matraz por mucho que
 se cambie el tamaño del marco. Si un cliente no expone `CreateMaskTexture`, el
 addon se degrada en vez de romperse: el líquido se encoge para caber dentro del
 bulbo.
+
+El mismo script escribe también `logo.png` en la raíz del repositorio: el
+avatar de 400x400 para la página de CurseForge, enmarcado como un icono de
+hechizo de vanilla —filo oscuro, bisel que recoge la luz de arriba a la
+izquierda, filo interior y el matraz sobre un fondo vineteado—. Se genera en
+vez de dibujarse para que no pueda separarse del arte del juego, y **no se
+empaqueta**: dentro del zip sería peso muerto en la carpeta de addons de cada
+jugador.
 
 Las constantes de geometría viven en dos sitios: `tools/make_art.py` y las
 constantes `FILL_*` / `GLOW_SCALE` de `Display.lua`. Mover el dibujo es mover

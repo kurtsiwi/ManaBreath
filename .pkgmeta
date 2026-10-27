@@ -12,6 +12,9 @@ ignore:
   # todavia no esta verificada.
   - ManaBreath_Mainline.toc
   - ManaBreath_Vanilla.toc
+  # El avatar es para la pagina de CurseForge, no para el juego: dentro del
+  # zip solo seria peso muerto en la carpeta de addons de cada jugador.
+  - logo.png
   - .github
   - .luarc.json
   - tests

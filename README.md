@@ -310,6 +310,32 @@ The geometry constants live in two places — `tools/make_art.py` and the
 `FILL_*` / `GLOW_SCALE` constants in `Display.lua`. Moving the drawing means
 moving both.
 
+The same script also writes `logo.png` in the repository root: the 400x400
+avatar for the CurseForge page, framed like a vanilla spell icon — dark outer
+rim, a bevel that catches the light from the upper left, an inner lip and the
+flask over a vignetted background. It is generated rather than drawn so it
+never drifts from the in-game art, and it is **not packaged**: inside the zip
+it would be dead weight in every player's AddOns folder.
+
+## The sound
+
+`Sound/ManaDrop.ogg` is adapted from **Waterdrop by DRAGON-STUDIO**, from
+Pixabay, used under the [Pixabay Content License][pixabay]. That license allows
+commercial use and modification and does not require attribution; the credit is
+given anyway, because it costs nothing and because CurseForge asks for the
+source of third-party audio at submission.
+
+The shipped file is not the original. It was trimmed from 1.03 s to 0.60 s with
+a 60 ms fade (0.88 s of it was a near-silent tail, but the decay is audible out
+to about 0.53 s, so cutting where a silence detector points would have eaten
+it), downmixed to mono, resampled to 44.1 kHz, peak-normalised from -12.9 dBFS
+to -1.3 dBFS and re-encoded as Ogg Vorbis. 33 KB became 8.5 KB.
+
+Ogg and not MP3: the client accepts both, but MP3 support has broken before,
+and when it fails it fails silently — no error, just no sound.
+
+[pixabay]: https://pixabay.com/service/license-summary/
+
 ## To verify in game (pending until launch)
 
 - [x] ~~Confirm the interface is `16001`.~~ Confirmed from the installed

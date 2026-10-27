@@ -16,7 +16,9 @@ Salida en Art/:
     FlaskGlow.tga     halo del brillo de regeneracion
     Icon.tga          icono para la lista de addons
 
-Y tools/preview.png, que no se empaqueta.
+Y dos PNG que no se empaquetan:
+    tools/preview.png  las piezas juntas, para mirarlas fuera del juego
+    logo.png           avatar de CurseForge, 400x400, en la raiz del repo
 
 La geometria de abajo es la que Display.lua da por supuesta: si se mueve algo
 aqui, hay que mover tambien las constantes FILL_* y GLOW_SCALE de alla.
@@ -438,6 +440,133 @@ def compose_flask(size, fill, tint, glass, mask, liquid, wave=None, bubble=None,
     return c
 
 
+def sample_bilinear(tex, u, v):
+    """Bilineal, para ampliar el matraz al tamano del avatar sin que se vean
+    los pixeles. sample() basta para la vista previa; esto no."""
+    if not (0.0 <= u <= 1.0 and 0.0 <= v <= 1.0):
+        return (0.0, 0.0, 0.0, 0.0)
+    fx = u * tex.w - 0.5
+    fy = v * tex.h - 0.5
+    x0 = int(math.floor(fx)); y0 = int(math.floor(fy))
+    tx = fx - x0; ty = fy - y0
+    out = [0.0, 0.0, 0.0, 0.0]
+    for dy in (0, 1):
+        yy = min(tex.h - 1, max(0, y0 + dy))
+        wy = ty if dy else 1.0 - ty
+        for dx in (0, 1):
+            xx = min(tex.w - 1, max(0, x0 + dx))
+            wt = (tx if dx else 1.0 - tx) * wy
+            px = tex.px[yy * tex.w + xx]
+            # Premultiplicado: mezclar el color sin pesarlo por el alfa
+            # ensucia el borde del cristal con el negro de fuera.
+            out[0] += px[0] * px[3] * wt
+            out[1] += px[1] * px[3] * wt
+            out[2] += px[2] * px[3] * wt
+            out[3] += px[3] * wt
+    if out[3] > 1e-6:
+        return (out[0] / out[3], out[1] / out[3], out[2] / out[3], out[3])
+    return (0.0, 0.0, 0.0, 0.0)
+
+
+# --- avatar de CurseForge --------------------------------------------------
+
+# Marco al estilo de los iconos de hechizo de vanilla: filo negro exterior,
+# bisel calido iluminado desde arriba a la izquierda, filo oscuro interior y
+# el arte sobre un fondo vineteado. Todo en fracciones del lado, asi que el
+# avatar se puede regenerar a cualquier tamano.
+LOGO_EDGE = 0.014      # filo negro exterior
+LOGO_BEVEL = 0.072     # ancho del bisel
+LOGO_LIP = 0.016       # filo oscuro que separa el marco del arte
+LOGO_RADIUS = 0.040    # redondeo de las esquinas
+LOGO_ART_INSET = 0.042 # aire entre el filo interior y el matraz
+
+C_BEVEL_HI = (0.86, 0.71, 0.40)
+C_BEVEL_LO = (0.14, 0.10, 0.055)
+C_SPEC = (1.00, 0.95, 0.80)
+C_RIM = (0.04, 0.03, 0.02)
+C_LIP = (0.07, 0.06, 0.045)
+C_ART_HI = (0.25, 0.32, 0.46)
+C_ART_LO = (0.02, 0.03, 0.055)
+
+
+def render_logo(size, flask):
+    """El avatar de CurseForge: 400x400, PNG, ni color solido ni WebP, que es
+    lo que pide su politica de moderacion. `flask` es el matraz ya compuesto."""
+    c = Canvas(size, size, (0.0, 0.0, 0.0))
+    aa = 1.2 / size
+    half = 0.5
+
+    e0 = LOGO_EDGE
+    e1 = e0 + LOGO_BEVEL
+    e2 = e1 + LOGO_LIP
+    art_half = half - e2
+    inner_span = (art_half - LOGO_ART_INSET) * 2.0
+
+    for py in range(size):
+        y = (py + 0.5) / size
+        for px in range(size):
+            x = (px + 0.5) / size
+            i = py * size + px
+
+            d_out = sd_round_box(x, y, half, half, half, half, LOGO_RADIUS)
+            if d_out > aa:
+                continue
+            d_bev = sd_round_box(x, y, half, half, half - e0, half - e0, LOGO_RADIUS * 0.8)
+            d_lip = sd_round_box(x, y, half, half, half - e1, half - e1, LOGO_RADIUS * 0.6)
+            d_art = sd_round_box(x, y, half, half, art_half, art_half, LOGO_RADIUS * 0.4)
+
+            # Fuera hacia dentro, cada capa tapando a la anterior.
+            c.over(i, C_RIM, 1.0 - smoothstep(-aa, aa, d_out))
+
+            # Bisel: claro arriba a la izquierda, oscuro abajo a la derecha,
+            # que es de donde viene la luz en los iconos del juego.
+            dx, dy = x - half, y - half
+            dist = math.hypot(dx, dy)
+            if dist > 1e-6:
+                lit = clamp(0.5 - 0.5 * ((dx / dist) * 0.707 + (dy / dist) * 0.707))
+            else:
+                lit = 0.5
+            lit = lit * lit * (3.0 - 2.0 * lit)
+
+            # El bisel abomba: no es un degradado plano del borde hacia dentro,
+            # sino una cresta que brilla por el medio y cae hacia los dos
+            # filos. Sin esto el marco se lee como una banda dorada pegada.
+            across = clamp(-d_bev / LOGO_BEVEL)
+            crest = math.sin(math.pi * across)
+            k = clamp(0.06 + lit * (0.40 + 0.60 * crest))
+            bevel = tuple(C_BEVEL_LO[j] + (C_BEVEL_HI[j] - C_BEVEL_LO[j]) * k
+                          for j in range(3))
+            inside_bevel = 1.0 - smoothstep(-aa, aa, d_bev)
+            c.over(i, bevel, inside_bevel)
+
+            # Reflejo estrecho sobre la cresta, solo en el lado iluminado.
+            spec = smoothstep(0.55, 1.0, lit) * smoothstep(0.55, 0.95, crest)
+            if spec > 0.0:
+                c.over(i, C_SPEC, spec * 0.55 * inside_bevel)
+
+            c.over(i, C_LIP, 1.0 - smoothstep(-aa, aa, d_lip))
+
+            # Arte: degradado en diagonal mas un vineteado hacia las esquinas.
+            if d_art < aa:
+                g = clamp(0.5 - 0.5 * ((x - half) + (y - half)) * 2.2)
+                vig = 1.0 - 0.55 * smoothstep(0.25, 0.72, dist)
+                bg = tuple((C_ART_LO[k] + (C_ART_HI[k] - C_ART_LO[k]) * g) * vig
+                           for k in range(3))
+                c.over(i, bg, 1.0 - smoothstep(-aa, aa, d_art))
+
+                u = (x - (half - inner_span / 2.0)) / inner_span
+                v = (y - (half - inner_span / 2.0)) / inner_span
+                if 0.0 <= u <= 1.0 and 0.0 <= v <= 1.0:
+                    inside = 1.0 - smoothstep(-aa, aa, d_art)
+                    # Resplandor azul detras del matraz, aditivo como en el juego.
+                    glow = (1.0 - smoothstep(0.0, 0.52, math.hypot(u - 0.5, v - 0.64)))
+                    c.add(i, (0.13, 0.28, 0.58), glow * glow * 1.15 * inside)
+                    f = sample_bilinear(flask, u, v)
+                    if f[3] > 0.0:
+                        c.over(i, (f[0], f[1], f[2]), f[3] * inside)
+    return c
+
+
 def preview(glass, mask, liquid, wave, bubble, glow):
     """Hoja de contactos sobre fondo oscuro, a 2x, para mirarla aqui mismo."""
     size = glass.w
@@ -504,6 +633,17 @@ def main():
     write_tga(os.path.join(ART, "Icon.tga"),
               compose_flask(128, 0.70, (0.26, 0.52, 0.98), glass, mask, liquid,
                             wave, None, 0.3))
+
+    print("Avatar de CurseForge:")
+    # El matraz se compone a 256 y no a 128: el avatar es casi el triple de
+    # grande que cualquier otra pieza, y ampliar desde 128 lo deja blando.
+    big_glass = render_glass(256)
+    big_mask = render_mask(256)
+    write_png(os.path.join(REPO, "logo.png"),
+              render_logo(400,
+                          compose_flask(256, 0.62, (0.26, 0.52, 0.98),
+                                        big_glass, big_mask, liquid, wave,
+                                        bubble, 0.3)))
 
     print("Vista previa:")
     write_png(os.path.join(HERE, "preview.png"),

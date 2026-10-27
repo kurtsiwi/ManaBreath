@@ -6,7 +6,10 @@
   vuelve a subir. Sustituye al `SOUNDKIT.READY_CHECK` de la 1.0, que era un
   sonido prestado de la interfaz sin nada que ver con el mana. Suena en las dos
   pieles y sigue mandado por `/mb sound on/off`: un interruptor, un sonido.
-- El audio va en `Sound/ManaDrop.ogg`: 8,5 KB, mono, 44,1 kHz, 0,60 s. OGG y no
+- El audio esta adaptado de *Waterdrop*, de DRAGON-STUDIO, en Pixabay, bajo la
+  Licencia de contenido de Pixabay: permite uso comercial y modificacion y no
+  exige atribucion, pero se acredita igual en el README.
+- El archivo va en `Sound/ManaDrop.ogg`: 8,5 KB, mono, 44,1 kHz, 0,60 s. OGG y no
   MP3 porque los dos cargan, pero el soporte de MP3 se rompio una vez y, cuando
   falla, no da error: simplemente no suena. Del original se recorto la cola
   muda (de 1,03 s a 0,60 s, con desvanecido para no dejar un chasquido) y se
