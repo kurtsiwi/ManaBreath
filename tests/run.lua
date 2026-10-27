@@ -630,6 +630,25 @@ MOCK:fire("UNIT_POWER_UPDATE", "player", "MANA")
 MOCK:advance(1 / 60)
 check("el tick aclara la cifra", D.timeText.color[1] > 0.4, true)
 
+-- La gota suena en las dos pieles. Vive en Finish(), que es comun a las dos,
+-- pero eso hay que comprobarlo y no suponerlo: es justo el tipo de cosa que
+-- una piel nueva se lleva por delante sin que nadie lo note hasta el juego.
+MB:Cancel()
+slash("sound on")
+local soundsBefore = MOCK.sounds
+MOCK.lastSoundFile = nil
+MOCK:fire("UNIT_SPELLCAST_SUCCEEDED", "player", "txt-snd", 100)
+MOCK:advance(5.2)
+check("en modo texto tambien suena", MOCK.sounds - soundsBefore, 1)
+check("y es la misma gota",
+    (MOCK.lastSoundFile or ""):find("Sound\\ManaDrop.ogg", 1, true) ~= nil, true)
+-- Y una sola vez: la fase verde dura, y una gota por frame seria insufrible.
+local afterFinish = MOCK.sounds
+MOCK:advance(2)
+check("una sola vez, no por frame", MOCK.sounds, afterFinish)
+slash("sound off")
+MB:Cancel()
+
 -- En modo texto la cifra es lo unico que hay: apagarla dejaria el marco vacio.
 MB:Cancel()
 slash("text off")
