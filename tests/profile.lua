@@ -33,7 +33,7 @@ MOCK:fire("PLAYER_LOGIN")
 local METHODS = {
     "SetPoint", "ClearAllPoints", "SetAlpha", "GetAlpha", "Show", "Hide",
     "SetShown", "SetHeight", "SetWidth", "SetSize", "SetTexCoord",
-    "SetVertexColor", "SetText", "SetFont", "GetFont", "SetTexture",
+    "SetVertexColor", "SetTextColor", "SetText", "SetFont", "GetFont", "SetTexture",
     "SetScript", "SetDrawLayer", "SetBlendMode",
 }
 
@@ -53,7 +53,7 @@ local function instrument(obj)
 end
 
 instrument(D.frame)
-for _, key in ipairs({ "liquid", "wave1", "wave2", "glow", "glass", "timeText" }) do
+for _, key in ipairs({ "liquid", "wave1", "wave2", "glow", "glass", "timeText", "label" }) do
     instrument(D[key])
 end
 for i = 1, #D.bubbles do instrument(D.bubbles[i]) end
@@ -111,6 +111,27 @@ phase("fase verde (con un tick)", 120, function()
     MOCK.mana = MOCK.mana + 150
     MOCK:fire("UNIT_POWER_UPDATE", "player", "MANA")
 end)
+
+-- La otra piel, sobre el mismo motor. Sin matraz no hay olas, ni burbujas, ni
+-- halo: no queda nada que animar a 30 Hz y lo unico que se mueve por frame es
+-- el contador. Si estas dos lineas no salen claramente por debajo de las de
+-- arriba, es que algo del matraz sigue dibujandose en modo texto.
+ManaBreathDB.style = "text"
+D:ApplySettings()
+
+phase("texto (regla corriendo)", 60, function()
+    castAndSettle(5000)
+end)
+
+phase("texto (fase verde, con un tick)", 120, function()
+    castAndSettle(2000, 6.5)
+    assert(D.state == "regen", D.state)
+    MOCK.mana = MOCK.mana + 150
+    MOCK:fire("UNIT_POWER_UPDATE", "player", "MANA")
+end)
+
+ManaBreathDB.style = "flask"
+D:ApplySettings()
 
 MB:Cancel()
 ManaBreathDB.alwaysShow = true

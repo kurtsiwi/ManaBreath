@@ -34,6 +34,27 @@ local DONE_TEXT = "regen"
 local HINT_TEXT = "arrastrame"
 local IDLE_FILL = 0.12
 
+-- Modo texto: sin matraz, solo la cifra y una etiqueta pequena debajo. El
+-- motor es el mismo (estados, tiempos, fase de regeneracion); lo unico que
+-- cambia es que se dibuja, asi que un arreglo en la regla vale para los dos.
+local TEXT_VALUE_H = 0.42   -- alto de la cifra, en fracciones del alto del marco
+local TEXT_LABEL_H = 0.17   -- alto de la etiqueta
+local TEXT_GAP     = 0.06   -- aire entre las dos
+local TEXT_PAD     = 0.26   -- margen alrededor del bloque
+-- Espaciadas a mano: el API de fuentes no expone letter-spacing, y es
+-- justamente el aire entre letras lo que hace que una etiqueta en
+-- mayusculas se lea como tipografia y no como un grito.
+local LABEL_RULE  = "5 S R"
+local LABEL_REGEN = "M A N A"
+local IDLE_TEXT   = "--"
+local COLOR_LABEL = { 0.55, 0.55, 0.62 }
+
+-- Las cadenas mas anchas que puede llegar a mostrar cada linea. El marco se
+-- dimensiona a estas y no a la que hay ahora: si no, cambiaria de tamano al
+-- pasar de "4.3" a "regen" y el bloque bailaria en pantalla.
+local WIDEST_VALUE = { DONE_TEXT, "100%", "0.0", IDLE_TEXT }
+local WIDEST_LABEL = { LABEL_RULE, LABEL_REGEN }
+
 -- Geometria del dibujo, en fracciones del marco. Estos mismos numeros estan
 -- en tools/make_art.py: si se mueve el matraz alla, hay que moverlos aqui.
 local FILL_BOTTOM = 0.040   -- fondo interior del bulbo
@@ -71,7 +92,7 @@ for i = 0, math.floor(MB.RULE_DURATION * 10) do
     TENTH_TEXT[i] = string.format("%.1f", i / 10)
 end
 
-local sin, abs, floor, min = math.sin, math.abs, math.floor, math.min
+local sin, abs, floor, min, max = math.sin, math.abs, math.floor, math.min, math.max
 local format = string.format
 
 -- Color de trabajo del destello. Se reutiliza: una tabla nueva por frame seria
@@ -91,11 +112,29 @@ local function AnchorWave(wave, liquid, height)
     wave:SetHeight(height)
 end
 
-local function SetFontSize(fontString, size)
+-- El matraz pide OUTLINE: la cifra va sobre el cristal y el liquido, y sin
+-- borde se pierde. El modo texto va sobre el fondo del juego, donde el borde
+-- se lee como un contorno grueso: ahi una sombra corta es mas limpia.
+local function SetFontSize(fontString, size, flags)
     local file = fontString:GetFont()
     if file then
-        fontString:SetFont(file, size, "OUTLINE")
+        fontString:SetFont(file, size, flags)
     end
+end
+
+local function MeasureWidest(fontString, candidates, fallback)
+    local keep = fontString:GetText()
+    local widest = 0
+    for i = 1, #candidates do
+        fontString:SetText(candidates[i])
+        local w = fontString:GetStringWidth() or 0
+        if w > widest then widest = w end
+    end
+    fontString:SetText(keep or "")
+    -- Si el cliente no sabe medir la cadena, una estimacion por numero de
+    -- letras deja el marco utilizable en vez de dejarlo a cero.
+    if widest <= 0 then widest = fallback end
+    return widest
 end
 
 function D:Init()
@@ -170,6 +209,13 @@ function D:Init()
     local timeText = f:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
     timeText:SetDrawLayer("OVERLAY", 7)
 
+    -- Solo se dibuja en modo texto. Se crea siempre porque crear un
+    -- FontString cuesta una vez y cambiar de estilo en caliente no deberia
+    -- tener que construir nada.
+    local label = f:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    label:SetDrawLayer("OVERLAY", 7)
+    label:Hide()
+
     local hint = f:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
     hint:SetPoint("TOP", f, "BOTTOM", 0, -2)
     hint:SetText(HINT_TEXT)
@@ -202,6 +248,7 @@ function D:Init()
     self.bubbles = bubbles
     self.glass = glass
     self.timeText = timeText
+    self.label = label
     self.hint = hint
     self.waveOffset1 = 0
     self.waveOffset2 = 0
@@ -221,6 +268,49 @@ end
 
 -- Todo lo que depende del tamano del marco se calcula aqui, no por frame.
 function D:Layout()
+    if self.textMode then
+        self:LayoutText()
+    else
+        self:LayoutFlask()
+    end
+end
+
+-- El bloque de texto se dimensiona a la cadena mas ancha que puede aparecer,
+-- una sola vez aqui. Asi el area de arrastre abraza lo que se ve y el marco
+-- no cambia de tamano a mitad de una cuenta atras.
+function D:LayoutText()
+    local f = self.frame
+    local h = MB:GetDB().height
+
+    self.valueSize = floor(h * TEXT_VALUE_H + 0.5)
+    self.labelSize = floor(h * TEXT_LABEL_H + 0.5)
+    self.textSize = nil
+
+    SetFontSize(self.timeText, self.valueSize, nil)
+    SetFontSize(self.label, self.labelSize, nil)
+    self.textSize = self.valueSize
+
+    for _, fs in ipairs({ self.timeText, self.label }) do
+        fs:SetShadowColor(0, 0, 0, 0.85)
+        fs:SetShadowOffset(1, -1)
+    end
+    self.label:SetTextColor(COLOR_LABEL[1], COLOR_LABEL[2], COLOR_LABEL[3])
+
+    local valueW = MeasureWidest(self.timeText, WIDEST_VALUE, self.valueSize * 3.2)
+    local labelW = MeasureWidest(self.label, WIDEST_LABEL, self.labelSize * 7)
+    local gap = h * TEXT_GAP
+    local pad = h * TEXT_PAD
+
+    f:SetSize(max(valueW, labelW) + pad,
+        self.valueSize + gap + self.labelSize + pad)
+
+    self.timeText:ClearAllPoints()
+    self.timeText:SetPoint("TOP", f, "TOP", 0, -pad / 2)
+    self.label:ClearAllPoints()
+    self.label:SetPoint("TOP", self.timeText, "BOTTOM", 0, -gap)
+end
+
+function D:LayoutFlask()
     local f = self.frame
     local w, h = f:GetWidth(), f:GetHeight()
     local waveH = WAVE_H * h
@@ -259,6 +349,10 @@ function D:Layout()
     self.digitSize = floor(h * 0.30 + 0.5)
     self.wordSize = floor(h * 0.17 + 0.5)
     self.textSize = nil
+
+    -- Sobre el cristal manda el OUTLINE, que lo pone SetText. La sombra es
+    -- del modo texto: si se viene de ahi, hay que soltarla.
+    self.timeText:SetShadowOffset(0, 0)
 end
 
 function D:ApplySettings()
@@ -271,23 +365,71 @@ function D:ApplySettings()
     self.frame:SetPoint(db.point, UIParent, db.relPoint, db.x, db.y)
     self.frame:EnableMouse(not db.locked)
 
+    self:ApplyStyle()
     self:Layout()
 
     self.dragArea:SetShown(not db.locked)
     self.hint:SetShown(not db.locked)
-    self.timeText:SetShown(db.showText)
+    -- En modo texto la cifra ES el aviso: apagarla no dejaria nada en
+    -- pantalla, asi que showText solo manda sobre el contador del matraz.
+    self.timeText:SetShown(self.textMode or db.showText)
 
     self:SetFill(self.fill, true)
     self:UpdateShown()
 end
 
+-- Enciende las piezas de una piel y apaga las de la otra. Va antes de Layout
+-- porque todo lo demas se ramifica en self.textMode.
+function D:ApplyStyle()
+    local textMode = MB:GetDB().style == "text"
+    self.textMode = textMode
+
+    self.glass:SetShown(not textMode)
+    self.liquid:SetShown(not textMode)
+    self.wave1:SetShown(not textMode)
+    self.wave2:SetShown(not textMode)
+    self.label:SetShown(textMode)
+
+    if textMode then
+        -- El halo es la silueta del matraz y las burbujas suben por dentro del
+        -- cristal: sin matraz no rodean ni suben por nada. Apagarlos aqui es
+        -- ademas lo que deja al modo texto sin animacion por frame.
+        self:SetGlow(false)
+        self:ShowBubbles(false)
+    elseif self.state ~= "idle" and self.state ~= nil then
+        -- Al reves, volver al matraz a mitad de un ciclo tiene que devolverlo
+        -- entero: estos dos se apagaron al entrar en modo texto y nadie los
+        -- volveria a encender hasta el siguiente casteo.
+        self:ShowBubbles(true)
+        self:RefreshGlow()
+    end
+end
+
 function D:SetText(text, big)
-    local size = big and self.digitSize or self.wordSize
-    if size ~= self.textSize then
-        self.textSize = size
-        SetFontSize(self.timeText, size)
+    if self.textMode then
+        -- Un solo cuerpo de letra para la cifra y para la palabra: si midieran
+        -- distinto, la linea daria un salto al pasar de "0.1" a "regen".
+        if self.textSize ~= self.valueSize then
+            self.textSize = self.valueSize
+            SetFontSize(self.timeText, self.valueSize, nil)
+        end
+    else
+        local size = big and self.digitSize or self.wordSize
+        if size ~= self.textSize then
+            self.textSize = size
+            SetFontSize(self.timeText, size, "OUTLINE")
+        end
     end
     self.timeText:SetText(text)
+end
+
+-- La etiqueta solo cambia entre fases, no por frame, pero el guarda cuesta
+-- menos que la llamada al API y mantiene la regla de la casa: nada se vuelve
+-- a escribir si no ha cambiado.
+function D:SetLabel(text)
+    if not self.textMode or text == self.shownLabel then return end
+    self.shownLabel = text
+    self.label:SetText(text)
 end
 
 -- frac va de 0 a 1. force redibuja aunque no haya cambiado, que es lo que
@@ -295,7 +437,22 @@ end
 function D:SetFill(frac, force)
     if frac == self.fill and not force then return end
     self.fill = frac
-    self.liquid:SetHeight(self.bottomPx + frac * self.spanPx)
+    -- Se sigue llevando la cuenta en modo texto aunque no haya liquido que
+    -- mover: es el mismo motor, y asi volver al matraz no empieza en blanco.
+    if not self.textMode then
+        self.liquid:SetHeight(self.bottomPx + frac * self.spanPx)
+    end
+end
+
+-- El color de la fase. En el matraz lo lleva el liquido; en modo texto, la
+-- cifra. Todo el motor llama aqui y no a uno de los dos, que es lo que hace
+-- que el destello de cada tick funcione igual en las dos pieles.
+function D:SetPhaseColor(color)
+    if self.textMode then
+        self.timeText:SetTextColor(color[1], color[2], color[3])
+    else
+        self:SetLiquidColor(color)
+    end
 end
 
 function D:SetLiquidColor(color)
@@ -305,6 +462,7 @@ function D:SetLiquidColor(color)
 end
 
 function D:SetGlow(enabled, color)
+    if self.textMode then enabled = false end
     self.glowing = enabled
     if enabled then
         self.glow:SetVertexColor(min(1, color[1] * 1.3), min(1, color[2] * 1.3),
@@ -327,6 +485,7 @@ function D:RefreshGlow()
 end
 
 function D:ShowBubbles(enabled)
+    if self.textMode then enabled = false end
     if enabled == self.bubbling then return end
     self.bubbling = enabled
     if not enabled then
@@ -353,8 +512,11 @@ function D:UpdateShown()
 
     if show and self.state == "idle" then
         self:SetFill(IDLE_FILL)
-        self:SetLiquidColor(COLOR_IDLE)
-        self:SetText("", false)
+        self:SetPhaseColor(COLOR_IDLE)
+        -- El matraz en reposo se lee solo, con el liquido bajo y apagado. El
+        -- texto en reposo no seria nada: necesita un marcador.
+        self:SetText(self.textMode and IDLE_TEXT or "", false)
+        self:SetLabel(LABEL_RULE)
         self:SetGlow(false)
         self:ShowBubbles(false)
     end
@@ -378,7 +540,8 @@ function D:Start(startedAt, expires)
     self.flashLeft = nil
     self.frame:SetAlpha(1)
     self:SetFill(0)
-    self:SetLiquidColor(COLOR_ACTIVE)
+    self:SetPhaseColor(COLOR_ACTIVE)
+    self:SetLabel(LABEL_RULE)
     self:SetGlow(MB:GetDB().glow == "rule", COLOR_ACTIVE)
     self:ShowBubbles(true)
     self.frame:Show()
@@ -390,7 +553,7 @@ function D:Finish()
     self.state = "done"
     self.holdLeft = HOLD_AFTER_DONE
     self:SetFill(1)
-    self:SetLiquidColor(COLOR_DONE)
+    self:SetPhaseColor(COLOR_DONE)
     self:SetText(DONE_TEXT, false)
     -- Aqui se acaba la regla: a partir de este instante el mana vuelve a
     -- subir, y eso es lo que marca el brillo.
@@ -409,6 +572,7 @@ function D:BeginRegen(now)
     if fraction == nil or fraction >= 1 then return false end
 
     self.state = "regen"
+    self:SetLabel(LABEL_REGEN)
     self.manaFraction = fraction
     self.manaPercent = floor(fraction * 100)
     self.shownPercent = nil
@@ -433,7 +597,7 @@ function D:ManaTick()
         self.flashLeft = nil
         self.state = "fading"
         self:SetFill(1)
-        self:SetLiquidColor(COLOR_DONE)
+        self:SetPhaseColor(COLOR_DONE)
         self:SetText("100%", false)
         return
     end
@@ -460,7 +624,9 @@ function D:Reset()
     self.lastTickAt = nil
     self.frame:SetAlpha(1)
     self:SetFill(0)
-    self:SetText("", false)
+    self:SetText(self.textMode and IDLE_TEXT or "", false)
+    self:SetLabel(LABEL_RULE)
+    self:SetPhaseColor(COLOR_IDLE)
     self:SetGlow(false)
     self:ShowBubbles(false)
     self:SetUpdating(false)
@@ -543,13 +709,13 @@ function D:OnUpdate(elapsed)
         self.flashLeft = self.flashLeft - elapsed
         if self.flashLeft <= 0 then
             self.flashLeft = nil
-            self:SetLiquidColor(COLOR_DONE)
+            self:SetPhaseColor(COLOR_DONE)
         else
             local t = self.flashLeft / TICK_FLASH
             for i = 1, 3 do
                 FLASH[i] = COLOR_DONE[i] + (COLOR_TICK[i] - COLOR_DONE[i]) * t
             end
-            self:SetLiquidColor(FLASH)
+            self:SetPhaseColor(FLASH)
         end
     end
 

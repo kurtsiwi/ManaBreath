@@ -271,7 +271,7 @@ check("categoria registrada en Ajustes", O.category.registered, true)
 
 local declared = 0
 for _ in pairs(O.settings) do declared = declared + 1 end
-check("opciones declaradas", declared, 10)
+check("opciones declaradas", declared, 11)
 
 -- Lo que importa de la forma moderna del API: el valor no vive en una variable
 -- del sistema, vive en ManaBreathDB. Si no, el panel y /mb serian dos verdades.
@@ -281,6 +281,8 @@ check("la escala es un deslizador", MOCK.settings.MANABREATH_SCALE.control, "sli
 check("de 0.5 a 3", MOCK.settings.MANABREATH_SCALE.sliderOptions.max, 3)
 check("el brillo es un desplegable", MOCK.settings.MANABREATH_GLOW.control, "dropdown")
 check("con los tres modos", #MOCK.settings.MANABREATH_GLOW.choices, 3)
+check("el estilo es un desplegable", MOCK.settings.MANABREATH_STYLE.control, "dropdown")
+check("con las dos pieles", #MOCK.settings.MANABREATH_STYLE.choices, 2)
 
 -- Marcar una casilla tiene que escribir en la DB y aplicarse al momento.
 MOCK.settings.MANABREATH_ALWAYSSHOW:SetValue(true)
@@ -563,14 +565,119 @@ MB:Cancel()
 print("\n-- se sabe de donde se leen los costes --")
 check("costApi detectado", MB.costApi, "C_Spell.GetSpellPowerCost")
 
+print("\n-- modo texto: la otra piel sobre el mismo motor --")
+-- Lo que se prueba aqui no es como queda, que eso solo se ve en el juego, sino
+-- que la piel de texto no se lleva por delante nada del motor: los mismos
+-- estados, los mismos tiempos y la misma deteccion.
+MB:Cancel()
+ManaBreathDB.alwaysShow = false
+slash("style text")
+check("la piel cambia", D.textMode, true)
+check("sin cristal", D.glass:IsShown(), false)
+check("sin liquido", D.liquid:IsShown(), false)
+check("con etiqueta", D.label:IsShown(), true)
+
+-- El marco deja de ser el cuadrado del matraz: lo pone la cadena mas larga que
+-- puede aparecer, para que no cambie de tamano a mitad de una cuenta atras.
+local textWidth = D.frame:GetWidth()
+check("el marco no es el del matraz", textWidth ~= ManaBreathDB.width, true)
+slash("test")
+MOCK:advance(0.1)
+check("ancho estable al cambiar la cifra", D.frame:GetWidth(), textWidth)
+MB:Cancel()
+
+MOCK:fire("UNIT_SPELLCAST_SUCCEEDED", "player", "txt-1", 100)
+check("la regla arranca igual", MB:IsActive(), true)
+check("restante = 5s", MB:Remaining(), 5.0)
+check("etiqueta de la regla", D.label:GetText(), "5 S R")
+check("la cifra toma el color de la fase", D.timeText.color[3] > D.timeText.color[2], true)
+
+-- El halo es la silueta del matraz y las burbujas suben por dentro del
+-- cristal: sin matraz no tienen donde ir, y apagarlos es lo que deja al modo
+-- texto sin nada que animar por frame.
+slash("glow rule")
+check("sin halo aunque se pida", D.glow:IsShown(), false)
+check("sin burbujas", D.bubbles[1]:IsShown(), false)
+check("nada que animar", D.bubbling or D.glowing, false)
+slash("glow regen")
+
+MOCK:advance(2)
+check("el contador corre", D.timeText:GetText(), "3.0")
+MOCK:advance(3.1)
+check("la regla termina igual", D.state, "done")
+check("palabra al terminar", D.timeText:GetText(), "regen")
+check("y el verde en la cifra", D.timeText.color[2] > D.timeText.color[3], true)
+
+-- Fase de regeneracion: la etiqueta es lo unico que cambia de sitio.
+-- El evento tras bajar el mana no es decorativo: Core compara contra el
+-- ultimo nivel que anoto, y sin avisarle leeria el tick de abajo como una
+-- bajada y no como mana entrando.
+MOCK.mana = 1000
+MOCK:fire("UNIT_POWER_UPDATE", "player", "MANA")
+MOCK:advance(1)
+check("entra en regen", D.state, "regen")
+check("etiqueta del mana", D.label:GetText(), "M A N A")
+check("la cifra es el porcentaje", D.timeText:GetText():find("%%") ~= nil, true)
+
+-- El destello de cada tick existe en las dos pieles: en el matraz lo lleva el
+-- liquido, aqui la cifra. Es el mismo codigo llamando a SetPhaseColor.
+MOCK.mana = MOCK.mana + 200
+MOCK:fire("UNIT_POWER_UPDATE", "player", "MANA")
+MOCK:advance(1 / 60)
+check("el tick aclara la cifra", D.timeText.color[1] > 0.4, true)
+
+-- En modo texto la cifra es lo unico que hay: apagarla dejaria el marco vacio.
+MB:Cancel()
+slash("text off")
+check("la cifra no se puede apagar", D.timeText:IsShown(), true)
+slash("text on")
+
+-- Cambiar de piel a mitad de una regla, que es cuando se nota si algo se
+-- quedo apagado: las burbujas y el halo se apagan al entrar en modo texto y
+-- nadie los volveria a encender hasta el siguiente casteo.
+slash("style text")
+slash("glow rule")
+MOCK:fire("UNIT_SPELLCAST_SUCCEEDED", "player", "txt-3", 100)
+MOCK:advance(1)
+check("en texto, a mitad de regla, sin burbujas", D.bubbles[1]:IsShown(), false)
+slash("style flask")
+check("y el halo vuelve al momento", D.glow:IsShown(), true)
+check("sin perder la cuenta", MB:Remaining() > 3.9 and MB:Remaining() < 4.1, true)
+-- Las burbujas las coloca el paso de animacion, no ShowBubbles: hace falta un
+-- frame, igual que al arrancar la regla.
+MOCK:advance(0.1)
+check("y las burbujas en el siguiente paso", D.bubbles[1]:IsShown(), true)
+slash("glow regen")
+MB:Cancel()
+slash("style text")
+
+-- Y volver al matraz tiene que devolverlo entero, no a medias.
+slash("style flask")
+check("vuelve el cristal", D.glass:IsShown(), true)
+check("vuelve el liquido", D.liquid:IsShown(), true)
+check("se va la etiqueta", D.label:IsShown(), false)
+check("y el marco del matraz", D.frame:GetWidth(), ManaBreathDB.width)
+MOCK:fire("UNIT_SPELLCAST_SUCCEEDED", "player", "txt-2", 100)
+check("el matraz vuelve a llenarse", D.fill, 0)
+MOCK:advance(2)
+check("y se llena", D.fill > 0.39 and D.fill < 0.41, true)
+check("con burbujas otra vez", D.bubbles[1]:IsShown(), true)
+MB:Cancel()
+MOCK.mana = 2000
+
 print("\n-- los .toc no se desincronizan --")
--- Cuatro archivos que solo se diferencian en la linea de interfaz. Cada vez que
--- se toca uno (un archivo Lua nuevo, una version, una directiva) hay que tocar
--- los cuatro, y olvidarse de uno no se nota hasta que el addon no carga en ese
+-- Archivos que solo se diferencian en la linea de interfaz. Cada vez que se
+-- toca uno (un archivo Lua nuevo, una version, una directiva) hay que tocarlos
+-- todos, y olvidarse de uno no se nota hasta que el addon no carga en ese
 -- cliente. Esto lo convierte en un fallo de la suite.
+--
+-- No hay copia con sufijo para Forever a proposito: el generico ya lleva su
+-- interfaz y es el que carga cuando ningun sufijo coincide, asi que una copia
+-- con sufijo solo podria acertar lo que el generico ya hace. Las dos de abajo
+-- si hacen trabajo: llevan OTRA interfaz, que es lo que hace que Retail y
+-- Classic Era no vean el addon como desactualizado.
 local TOCS = {
-    ["ManaBreath.toc"] = 16001,           -- generico: el que usa Forever si no hay sufijo
-    ["ManaBreath_Camelot.toc"] = 16001,   -- sufijo supuesto de Forever, sin confirmar
+    ["ManaBreath.toc"] = 16001,           -- el unico que se publica; lo carga Forever
     ["ManaBreath_Mainline.toc"] = 120001, -- Retail de Midnight, solo pruebas
     ["ManaBreath_Vanilla.toc"] = 11507,   -- Classic Era, solo pruebas
 }

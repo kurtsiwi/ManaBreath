@@ -58,6 +58,39 @@ sin decir nada. Por defecto (`/mb glow regen`) alumbra la verde, que es la únic
 en la que de verdad estás recuperando maná; `/mb glow rule` lo pasa a los
 5 segundos de la regla y `/mb glow off` lo apaga.
 
+### Las dos pieles
+
+El matraz es una piel, no el addon. `/mb style text` lo cambia por una lectura
+sobria, solo de letras: la cifra, y debajo una etiqueta pequeña espaciada.
+
+```
+      4.3                 62%
+     5 S R               M A N A
+```
+
+| | Matraz | Texto |
+| --- | --- | --- |
+| La regla corriendo | Líquido subiendo, olas, burbujas | `4.3` en azul, sobre `5 S R` |
+| La regla cumplida | Matraz lleno, `regen` | `regen` en verde, sobre `5 S R` |
+| Regenerando | El líquido sigue tu maná | `62%` en verde, sobre `M A N A` |
+| Entra un tick | Destella el líquido | Destella la cifra |
+| Halo | Opcional, alrededor del matraz | No hay: no hay silueta que rodear |
+
+Las dos pieles corren el **mismo motor**: los mismos estados, los mismos
+tiempos, la misma detección. Lo único que cambia es el dibujo, así que un
+arreglo en la regla vale para las dos y no hay una segunda verdad que mantener
+al día.
+
+En modo texto cambian tres cosas, y el comando lo dice al cambiar: no hay halo,
+no hay burbujas y `/mb text off` no hace nada, porque la cifra es lo único que
+hay en pantalla y apagarla dejaría el marco vacío. El marco se dimensiona a la
+cadena más larga que puede llegar a mostrar, medida una sola vez, para que el
+bloque no baile a mitad de la cuenta atrás; `/mb size` sigue poniendo el alto,
+que es lo que manda sobre el cuerpo de letra, y el ancho lo pone el texto.
+
+El modo texto es además el barato: sin olas, burbujas ni halo no queda nada que
+animar, y eso lo baja de ~5 llamadas al API por frame a ~1.
+
 ### Configuración
 
 Todo se puede configurar de dos maneras, y las dos escriben en el mismo sitio:
@@ -81,6 +114,7 @@ nota en el matraz aunque la regla esté corriendo.
 | `/mb config` | Abre el panel de opciones |
 | `/mb lock` / `/mb unlock` | Fija o libera el matraz |
 | `/mb test` | Demo de 5 segundos |
+| `/mb style flask/text` | Matraz animado, o solo letras |
 | `/mb scale <0.5 - 3>` | Escala del matraz: la forma correcta de agrandarlo |
 | `/mb size <ancho> <alto>` | Tamaño del marco; el dibujo supone un marco cuadrado |
 | `/mb sound on/off` | Aviso sonoro al terminar la regla |
@@ -198,7 +232,7 @@ por casteo cuando la cifra real es 320.
 
 | | |
 | --- | --- |
-| Huella estática (cargado e inicializado) | ~95 KB, más ~10 KB al registrar el panel |
+| Huella estática (cargado e inicializado) | ~106 KB, más ~12 KB al registrar el panel |
 | En reposo, matraz oculto | **0 bytes/frame, sin `OnUpdate` instalado** |
 | Matraz visible pero en reposo (`/mb always on`) | **0 bytes/frame, sin `OnUpdate` instalado** |
 | 600 frames de fase azul | **0 bytes** |
@@ -206,7 +240,7 @@ por casteo cuando la cifra real es 320.
 | `UNIT_POWER_UPDATE` | **0 bytes** |
 | Por casteo | ~320 bytes, todo la tabla que devuelve `C_Spell.GetSpellPowerCost` |
 | Ciclo completo de 5 s | ~370 bytes, el casteo incluido |
-| Llamadas al API por frame animando | ~5 |
+| Llamadas al API por frame animando | ~5 (matraz) · ~1 (texto) |
 | Deriva tras 200 ciclos + 400 casteos + 2000 `UNIT_POWER_UPDATE` | **−0,04 KB (sin fuga)** |
 
 Cuatro decisiones explican esos números:
@@ -232,14 +266,18 @@ Cuatro decisiones explican esos números:
   cambia la décima, y el porcentaje solo cuando cambia el entero. El color del
   destello de cada tick se calcula sobre una tabla que se reutiliza.
 
-De esos ~105 KB, unos 8 KB son `Verify.lua`, que solo se usa una vez para
-comprobar la regla en el juego, y unos 23 KB son el panel de opciones: ~13 KB
-de `Options.lua` y ~10 KB de los objetos que el sistema de ajustes crea al
-declarar las diez opciones. Las dos son decisiones conscientes y del mismo
+De esos ~118 KB, unos 6 KB son `Verify.lua`, que solo se usa una vez para
+comprobar la regla en el juego, y unos 29 KB son el panel de opciones: ~17 KB
+de `Options.lua` y ~12 KB de los objetos que el sistema de ajustes crea al
+declarar las once opciones. Las dos son decisiones conscientes y del mismo
 tipo: memoria residente a cambio de que el addon se pueda medir y configurar
-sin leerse el README. Si alguna vez esos 23 KB molestaran, quitar `Options.lua`
-del `.toc` devuelve el addon a ~82 KB sin tocar nada más: los comandos no
+sin leerse el README. Si alguna vez esos 29 KB molestaran, quitar `Options.lua`
+del `.toc` devuelve el addon a ~89 KB sin tocar nada más: los comandos no
 dependen del panel.
+
+La piel de texto cuesta unos 12 KB de ese total, y los cuesta se use o no: las
+dos pieles se construyen al cargar, así que cambiar de una a otra dibuja al
+momento en vez de montar widgets a mitad de una regla.
 
 Lo único que asigna de forma inevitable es `C_Spell.GetSpellPowerCost`, que
 devuelve una tabla nueva en cada llamada. Son ~320 bytes por casteo y
@@ -249,10 +287,11 @@ y un coste cacheado arrancaría la regla en un casteo que no gastó maná.
 ## Verificar en el juego (pendiente hasta el lanzamiento)
 
 - [ ] `/dump select(4, GetBuildInfo())` — confirmar que la interfaz es `16001`.
-- [ ] Confirmar el sufijo de `.toc` que usa Forever. El repo incluye
-      `ManaBreath.toc` y `ManaBreath_Camelot.toc`: el cliente carga el
-      específico de su sabor si existe y, si no, el genérico. Si el sufijo real
-      es otro, renombra la copia.
+- [ ] Confirmar que el addon aparece en la lista. El paquete lleva un solo
+      `ManaBreath.toc`, sin sufijo de sabor: el cliente carga el específico de
+      su sabor si existe y, si no, el genérico, así que el genérico cubre
+      cualquier sufijo que use Forever. Si no carga, el problema es el número
+      de interfaz, no el nombre del archivo.
 - [ ] Confirmar que el `spellID` de `UNIT_SPELLCAST_SUCCEEDED` del propio
       jugador no llega como Secret Value en combate (con `/mb debug on` se
       imprime `yes` / `no` / `unknown` por cada casteo).

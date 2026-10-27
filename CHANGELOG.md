@@ -1,5 +1,51 @@
 # Changelog
 
+## 1.2.0
+
+- **Modo texto.** `/mb style text` cambia el matraz por una lectura sobria,
+  solo de letras: la cifra y debajo una etiqueta pequena espaciada (`5 S R`
+  durante la regla, `M A N A` mientras regeneras). `/mb style flask` vuelve al
+  matraz. Tambien esta en el panel, lo primero de Aspecto.
+- Es una **piel, no un segundo display**: las dos corren el mismo motor, con
+  los mismos estados, los mismos tiempos y la misma deteccion. Lo unico que
+  cambia es que se dibuja, asi que un arreglo en la regla vale para las dos.
+  El destello de cada tick de mana existe en las dos: en el matraz lo lleva el
+  liquido, en modo texto la cifra.
+- En modo texto no hay halo ni burbujas: el halo es la silueta del matraz y las
+  burbujas suben por dentro del cristal, asi que sin matraz no rodean ni suben
+  por nada. `/mb text off` tampoco hace nada, porque la cifra es lo unico que
+  hay en pantalla. El comando lo dice al cambiar de piel, en vez de dejar tres
+  mandos que parecen rotos.
+- Apagar esas tres cosas es ademas lo que deja al modo texto **sin nada que
+  animar**: baja de ~5 llamadas al API por frame a ~1. `tests/profile.lua` mide
+  las dos pieles, asi que si algo del matraz se colara en modo texto, se veria.
+- El marco se dimensiona a la cadena mas ancha que puede llegar a mostrar,
+  medida una sola vez al colocar: asi el bloque no cambia de tamano al pasar de
+  `4.3` a `regen` y el area de arrastre abraza lo que se ve. `/mb size` sigue
+  poniendo el alto, que es lo que manda sobre el cuerpo de letra; el ancho lo
+  pone el texto.
+- La cifra del matraz lleva `OUTLINE` porque va sobre el cristal y el liquido.
+  La del modo texto va sobre el fondo del juego, donde el borde se lee como un
+  contorno grueso: ahi lleva una sombra corta.
+- Las pruebas cubren la piel nueva entera, incluido que volver al matraz lo
+  devuelva completo y no a medias.
+- Nueva comprobacion de que los `.toc` no se desincronizan: solo pueden
+  diferenciarse en la linea `## Interface`, y su lista de archivos Lua tiene
+  que ser la que las pruebas cargan. Cuatro archivos casi identicos no se
+  revisan a ojo.
+- **Fuera el `.toc` con sufijo de sabor** (`ManaBreath_Camelot.toc`). El
+  sufijo de Forever nunca se confirmo, y daba igual: el generico ya lleva la
+  interfaz `16001` y es el que carga cuando ningun sufijo coincide, asi que la
+  copia con sufijo solo podia acertar lo que el generico ya hacia. Se publica
+  un unico `ManaBreath.toc`.
+- Copias de prueba `ManaBreath_Mainline.toc` (Retail, `120001`) y
+  `ManaBreath_Vanilla.toc` (Classic Era, `11507`) para poder probar carga,
+  dibujo y comandos en clientes vivos antes de que Forever lance. Quedan fuera
+  del paquete publicado: anunciarian una compatibilidad sin verificar.
+- La huella estatica sube a ~106 KB mas ~12 KB del panel. Los ~12 KB de la
+  piel de texto se pagan se use o no, porque las dos se construyen al cargar y
+  cambiar de piel no deberia montar widgets a mitad de una regla.
+
 ## 1.1.0
 
 - La barra pasa a ser un **matraz**: el líquido sube durante los 5 segundos y

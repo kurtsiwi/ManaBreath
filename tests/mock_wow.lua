@@ -270,9 +270,22 @@ end
 function Frame:SetStatusBarColor(r, g, b) store(self, "color", r, g, b) end
 function Frame:SetVertexColor(r, g, b) store(self, "color", r, g, b) end
 function Frame:SetTexCoord(l, r, t, b) store(self, "coord", l, r, t, b) end
-function Frame:GetFont() return "Fonts/FRIZQT__.TTF", 10, "" end
+function Frame:SetFont(file, size, flags)
+    self.fontFile, self.fontSize, self.fontFlags = file, size, flags
+end
+function Frame:GetFont()
+    return self.fontFile or "Fonts/FRIZQT__.TTF", self.fontSize or 10, self.fontFlags or ""
+end
 function Frame:SetText(t) self.text = t end
 function Frame:GetText() return self.text end
+function Frame:SetTextColor(r, g, b) store(self, "color", r, g, b) end
+-- Ancho aproximado: no hace falta que sea el del cliente, solo que crezca con
+-- la cadena y con el cuerpo de letra. El addon lo usa para dimensionar el
+-- marco del modo texto, y lo que se prueba es que lo dimensione a la cadena
+-- mas ancha, no el numero exacto de pixeles.
+function Frame:GetStringWidth()
+    return #(self.text or "") * (self.fontSize or 10) * 0.6
+end
 function Frame:CreateTexture() return newFrame("Texture") end
 function Frame:CreateMaskTexture() return newFrame("MaskTexture") end
 function Frame:CreateFontString() return newFrame("FontString") end

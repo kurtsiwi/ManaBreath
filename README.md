@@ -58,6 +58,38 @@ nothing. By default (`/mb glow regen`) it lights the green one, the only phase
 where you are actually getting mana back; `/mb glow rule` moves it to the
 5 seconds of the rule, and `/mb glow off` turns it off.
 
+### Two looks
+
+The flask is one skin, not the addon. `/mb style text` swaps it for a sober
+text-only readout: the figure, and a small spaced label underneath.
+
+```
+      4.3                 62%
+     5 S R               M A N A
+```
+
+| | Flask | Text |
+| --- | --- | --- |
+| The rule is running | Liquid rising, waves, bubbles | `4.3` in blue, over `5 S R` |
+| The rule is over | Full flask, `regen` | `regen` in green, over `5 S R` |
+| Regenerating | Liquid tracks your mana | `62%` in green, over `M A N A` |
+| A tick landed | The liquid flashes | The figure flashes |
+| Glow | Optional, around the flask | None — there is no silhouette to light |
+
+Both skins run the **same engine**: the same states, the same timings, the same
+detection. Only the drawing differs, so a fix to the rule lands in both and
+there is no second truth to keep in step.
+
+Three things change in text mode, and the command says so when you switch:
+there is no glow, there are no bubbles, and `/mb text off` has no effect —
+the figure is the only thing on screen, so turning it off would leave an empty
+frame. The frame sizes itself to the widest string it can ever show, measured
+once, so the block does not jump mid-countdown; `/mb size` still sets the
+height, which is what drives the font, while the width comes from the text.
+
+Text mode is also the cheaper one: with no waves, bubbles or glow there is
+nothing to animate, which drops it from ~5 API calls per frame to ~1.
+
 ### Configuration
 
 Everything can be set two ways, and both write to the same place:
@@ -80,6 +112,7 @@ flask even mid-rule.
 | `/mb config` | Open the options panel |
 | `/mb lock` / `/mb unlock` | Pin or release the flask |
 | `/mb test` | 5-second demo |
+| `/mb style flask/text` | Animated flask, or text only |
 | `/mb scale <0.5 - 3>` | Flask scale — the right way to resize it |
 | `/mb size <width> <height>` | Frame size; the art assumes a square frame |
 | `/mb sound on/off` | Sound cue when the rule ends |
@@ -196,7 +229,7 @@ which shifts with the size of the heap. The bench measured that way up to
 
 | | |
 | --- | --- |
-| Static footprint (loaded and initialized) | ~95 KB, plus ~10 KB once the panel registers |
+| Static footprint (loaded and initialized) | ~106 KB, plus ~12 KB once the panel registers |
 | Idle, flask hidden | **0 bytes/frame, no `OnUpdate` installed** |
 | Flask visible but idle (`/mb always on`) | **0 bytes/frame, no `OnUpdate` installed** |
 | 600 frames of the blue phase | **0 bytes** |
@@ -204,7 +237,7 @@ which shifts with the size of the heap. The bench measured that way up to
 | `UNIT_POWER_UPDATE` | **0 bytes** |
 | Per cast | ~320 bytes, all of it the table `C_Spell.GetSpellPowerCost` returns |
 | One full 5 s cycle | ~370 bytes, the cast included |
-| API calls per frame while animating | ~5 |
+| API calls per frame while animating | ~5 (flask) · ~1 (text) |
 | Drift after 200 cycles + 400 casts + 2000 `UNIT_POWER_UPDATE` | **-0.04 KB (no leak)** |
 
 Four decisions account for those numbers:
@@ -230,14 +263,18 @@ Four decisions account for those numbers:
   and the percentage only when the integer does. The per-tick flash colour is
   computed into a table that gets reused.
 
-Of those ~105 KB, about 8 KB is `Verify.lua`, which is only used once to check
-the rule in game, and about 23 KB is the options panel: ~13 KB of `Options.lua`
-and ~10 KB of the objects the settings system creates when the ten settings are
-declared. Both are conscious calls of the same kind: resident memory in return
-for an addon you can measure and configure without reading the README. If those
-23 KB ever got in the way, dropping `Options.lua` from the `.toc` returns the
-addon to ~82 KB and nothing else changes — the commands do not depend on the
-panel.
+Of those ~118 KB, about 6 KB is `Verify.lua`, which is only used once to check
+the rule in game, and about 29 KB is the options panel: ~17 KB of `Options.lua`
+and ~12 KB of the objects the settings system creates when the eleven settings
+are declared. Both are conscious calls of the same kind: resident memory in
+return for an addon you can measure and configure without reading the README.
+If those 29 KB ever got in the way, dropping `Options.lua` from the `.toc`
+returns the addon to ~89 KB and nothing else changes — the commands do not
+depend on the panel.
+
+The text skin costs about 12 KB of that total, and it costs it whether or not
+you use it: both skins are built at load so switching between them draws
+immediately instead of constructing widgets mid-rule.
 
 The one unavoidable allocation is `C_Spell.GetSpellPowerCost`, which returns a
 fresh table on every call. That is ~320 bytes per cast and is **deliberately
@@ -270,10 +307,11 @@ moving both.
 ## To verify in game (pending until launch)
 
 - [ ] `/dump select(4, GetBuildInfo())` — confirm the interface is `16001`.
-- [ ] Confirm the `.toc` suffix Forever uses. The repo ships both
-      `ManaBreath.toc` and `ManaBreath_Camelot.toc`: the client loads the
-      flavor-specific one if it exists and falls back to the generic one. If
-      the real suffix is different, rename the copy.
+- [ ] Confirm the addon shows up in the addon list at all. The package ships
+      a single `ManaBreath.toc`, with no flavor suffix: the client loads the
+      flavor-specific file if one exists and falls back to the generic one, so
+      the generic covers every suffix Forever might use. If it does not load,
+      the problem is the interface number, not the filename.
 - [ ] Confirm that the `spellID` from the player's own
       `UNIT_SPELLCAST_SUCCEEDED` does not arrive as a Secret Value in combat
       (`/mb debug on` prints `yes` / `no` / `unknown` for every cast).

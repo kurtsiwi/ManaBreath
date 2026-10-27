@@ -24,6 +24,7 @@ local function Help()
     print("  |cffffff00/mb config|r - abre el panel de opciones")
     print("  |cffffff00/mb lock|r / |cffffff00unlock|r - fija o libera el matraz")
     print("  |cffffff00/mb test|r - demo de 5 segundos")
+    print("  |cffffff00/mb style flask/text|r - matraz animado o solo letras")
     print("  |cffffff00/mb scale <n>|r - escala (0.5 - 3)")
     print("  |cffffff00/mb size <ancho> <alto>|r - tamano del matraz")
     print("  |cffffff00/mb glow regen/rule/off|r - cuando brilla el matraz")
@@ -93,6 +94,36 @@ handlers.size = function(width, height)
     db.width, db.height = width, height
     ns.display:ApplySettings()
     MB:Print(("tamano: %dx%d"):format(width, height))
+    if db.style == "text" then
+        MB:Print("en modo texto el ancho lo pone la cadena mas larga; manda el alto.")
+    end
+end
+
+-- Las dos pieles. Por debajo es el mismo addon: cambia lo que se dibuja, no
+-- lo que se detecta ni cuanto dura la regla.
+local STYLE_MODES = {
+    flask = "el matraz animado, con liquido, olas y burbujas",
+    text = "solo la cifra y una etiqueta pequena debajo",
+}
+
+handlers.style = function(value)
+    if not value or not STYLE_MODES[value] then
+        MB:Print("uso: /mb style flask | text")
+        for _, mode in ipairs({ "flask", "text" }) do
+            print(("  |cffffff00%s|r - %s"):format(mode, STYLE_MODES[mode]))
+        end
+        return
+    end
+    MB:GetDB().style = value
+    ns.display:ApplySettings()
+    if ns.options then ns.options:Refresh() end
+    MB:Print("estilo: |cff33ff33" .. value .. "|r (" .. STYLE_MODES[value] .. ")")
+    if value == "text" then
+        -- Tres opciones dejan de tener efecto, y callarselo se lee como que
+        -- el mando no funciona.
+        MB:Print("en modo texto no hay halo ni burbujas, y el contador no se")
+        MB:Print("puede apagar: es lo unico que se ve.")
+    end
 end
 
 -- El brillo marca una sola fase, la que se elija: encenderlo en las dos lo
@@ -188,9 +219,9 @@ handlers.status = function()
         :format(MB:UsesMana() and "si" or "no",
                 MB:IsActive() and "si" or "no",
                 MB:Remaining()))
-    MB:Print(("fijado: %s | escala: %s | sonido: %s | brillo: %s")
-        :format(tostring(db.locked), tostring(db.scale), tostring(db.sound),
-                tostring(db.glow)))
+    MB:Print(("estilo: %s | fijado: %s | escala: %s | sonido: %s | brillo: %s")
+        :format(tostring(db.style), tostring(db.locked), tostring(db.scale),
+                tostring(db.sound), tostring(db.glow)))
     MB:Print(("respaldo: %s | canal: %s | seguir regen: %s")
         :format(tostring(db.powerFallback), tostring(db.channelRestart),
                 tostring(db.holdRegen)))
