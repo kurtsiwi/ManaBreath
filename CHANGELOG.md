@@ -24,6 +24,19 @@
   para agrandarlo sin deformarlo, `/mb scale`.
 - El `OnUpdate` sigue sin asignar memoria por frame —la fase verde incluida— y
   sigue desinstalado en reposo.
+- Las olas, las burbujas y el latido del halo pasan a 30 Hz (`ANIM_STEP`). A
+  58 px nada avanza más de medio píxel por paso, así que 60 Hz eran el doble de
+  llamadas al API para el mismo dibujo: de ~16 a ~5 llamadas por frame. El
+  nivel del líquido y el contador siguen yendo por frame.
+- `Show()` y `SetAlpha()` de las burbujas solo se llaman cuando cambian de
+  verdad. Antes se llamaban las dos en cada frame y cada burbuja pasa el 70 %
+  de su vida a opacidad constante.
+- El banco de memoria mide con el recolector parado. Corriendo, lo que medía no
+  era lo que el addon asigna sino lo que el recolector no alcanzó a liberar, y
+  eso depende del tamaño del montón: de ahí salían los "3–12 bytes por casteo"
+  de la 1.0, cuando la cifra real es ~320, toda ella la tabla que devuelve
+  `C_Spell.GetSpellPowerCost`. Los frames, en cambio, son cero de verdad.
+- Nuevo `tests/profile.lua`: cuenta llamadas al API por frame en cada fase.
 
 ## 1.0.0
 

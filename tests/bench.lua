@@ -10,10 +10,16 @@ end
 
 local function kb(n) return ("%.2f KB"):format(n) end
 
+-- El recolector se para durante la medicion. Si corre, lo que se lee no es lo
+-- que el addon asigna sino lo que el recolector no alcanzo a liberar, y eso
+-- depende del tamano del monton al empezar: dos versiones del addon daban
+-- cifras distintas en un camino que no habia cambiado.
 local function measure(label, iterations, fn)
     local before = settle()
+    collectgarbage("stop")
     fn()
     local after = collectgarbage("count")
+    collectgarbage("restart")
     local total = after - before
     local per = total / iterations
     print(("  %-44s %10s   %s"):format(label, kb(total), per > 0.0005
@@ -52,11 +58,13 @@ measure("20 ciclos completos de 5 s a 60 fps", 20, function()
     end
 end)
 
-measure("600 frames de barra activa", 600, function()
-    MOCK:fire("UNIT_SPELLCAST_SUCCEEDED", "player", "bench-2", 100)
+-- El casteo que arranca la regla se hace FUERA de la medicion: asigna 20 veces
+-- mas que los 600 frames juntos y taparia el dato que se busca.
+MOCK:fire("UNIT_SPELLCAST_SUCCEEDED", "player", "bench-2", 100)
+measure("600 frames de fase azul", 600, function()
     MOCK:advance(600 * FRAME, FRAME)
-    MB:Cancel()
 end)
+MB:Cancel()
 
 -- La fase de regeneracion puede quedarse varios segundos en pantalla, asi que
 -- se mide aparte. Se entra en ella ANTES de medir: lo que interesa es su coste

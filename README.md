@@ -172,29 +172,41 @@ load.
 
 ## Efficiency and memory
 
-Measured outside the game with `lua tests/bench.lua`:
+Measured outside the game with `lua tests/bench.lua`, **with the collector
+stopped for each measurement**. That matters: with the collector running, what
+you read is not what the addon allocates but what it failed to free in time,
+which shifts with the size of the heap. The bench measured that way up to
+1.1.0, which is why it reported 3-12 bytes per cast when the real figure is 320.
 
 | | |
 | --- | --- |
-| Static footprint (loaded and initialized) | ~86 KB |
+| Static footprint (loaded and initialized) | ~82 KB |
 | Idle, flask hidden | **0 bytes/frame, no `OnUpdate` installed** |
 | Flask visible but idle (`/mb always on`) | **0 bytes/frame, no `OnUpdate` installed** |
-| Flask animating at 60 fps (blue phase) | ~0.5 bytes/frame |
-| Green phase at 60 fps, tracking mana | **no measurable garbage** |
-| One full 5 s cycle | ~0.36 KB |
-| `UNIT_POWER_UPDATE` | no measurable garbage |
-| Per cast | 3-12 bytes |
+| 600 frames of the blue phase | **0 bytes** |
+| 600 frames of the green phase | **0 bytes/frame** · ~24 bytes per percentage change |
+| `UNIT_POWER_UPDATE` | **0 bytes** |
+| Per cast | ~320 bytes, all of it the table `C_Spell.GetSpellPowerCost` returns |
+| One full 5 s cycle | ~370 bytes, the cast included |
+| API calls per frame while animating | ~5 |
 | Drift after 200 cycles + 400 casts + 2000 `UNIT_POWER_UPDATE` | **-0.04 KB (no leak)** |
 
-Three decisions account for those numbers:
+Four decisions account for those numbers:
 
 - **`OnUpdate` is only installed while there is something to animate.** It goes
   on when the countdown starts and comes off when the fade ends. Idle, the
   addon runs nothing per frame — not even with the flask visible.
-- **Neither the counter nor the percentage builds strings.** The window is
-  fixed (0.0-5.0) and the percentage runs 0 to 100, so all 51 + 101 possible
-  strings are precomputed at load. One `string.format` per frame would generate
-  garbage 60 times a second.
+- **The animation runs at 30 Hz, not per frame.** At 58 px the liquid is 36 px
+  tall and the fastest bubble crosses it in 2 seconds: 0.6 px per 30 Hz step.
+  Asking for 60 Hz meant paying twice the API calls to move half a pixel. The
+  liquid level and the counter do run per frame, since those are what you look
+  at closely. It is `ANIM_STEP` in `Display.lua`.
+- **The counter builds no strings.** The window is fixed (0.0-5.0), so all 51
+  possible strings are precomputed at load; the counter changes ten times a
+  second. The green phase percentage is **not** precomputed: it changes a few
+  times a second, and Lua reuses short strings, so formatting it on the spot is
+  free in steady state and saves ~4 KB resident. Precomputing it was paying
+  permanent memory for nothing.
 - **The animation allocates nothing.** The bubbles are a fixed table — no
   `math.random` per frame — the waves scroll with `SetTexCoord`, and the wave
   strips hang off the top edge of the liquid, so raising the level moves them
@@ -202,12 +214,12 @@ Three decisions account for those numbers:
   and the percentage only when the integer does. The per-tick flash colour is
   computed into a table that gets reused.
 
-Of those ~86 KB, about 8 KB is `Verify.lua`, which is only used once to check
+Of those ~82 KB, about 8 KB is `Verify.lua`, which is only used once to check
 the rule in game. That is a conscious call: it costs resident memory in return
 for being able to measure instead of assume.
 
 The one unavoidable allocation is `C_Spell.GetSpellPowerCost`, which returns a
-fresh table on every call. That is a few bytes per cast and is **deliberately
+fresh table on every call. That is ~320 bytes per cast and is **deliberately
 not cached**: the API reflects resource discounts applied by auras, so the value
 changes over time. A Clearcasting-style aura makes the spell free and the API
 reports it; a cached cost would start the rule on a cast that spent no mana.
@@ -285,10 +297,18 @@ deduplication, Secret Values, restricted context (with and without
 mock makes touching a secret value raise an error, just like WoW, so a missing
 `issecretvalue()` guard shows up as a failure instead of slipping through.
 
-The memory benchmark is separate:
+The memory benchmark is separate, and measures with the collector stopped:
 
 ```
 lua tests/bench.lua
+```
+
+And the profiler counts API calls per frame in each phase, which is the other
+half of the question: an animation can allocate not one byte and still be
+calling into the client forty times a frame.
+
+```
+lua tests/profile.lua
 ```
 
 ## License

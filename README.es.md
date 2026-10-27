@@ -173,29 +173,41 @@ cargaría.
 
 ## Eficiencia y memoria
 
-Medido fuera del juego con `lua tests/bench.lua`:
+Medido fuera del juego con `lua tests/bench.lua`, **con el recolector parado
+durante cada medición**. Eso importa: si el recolector corre, lo que se lee no
+es lo que el addon asigna sino lo que no alcanzó a liberar, y eso cambia con el
+tamaño del montón. El banco medía así hasta la 1.1.0, y por eso daba 3–12 bytes
+por casteo cuando la cifra real es 320.
 
 | | |
 | --- | --- |
-| Huella estática (cargado e inicializado) | ~86 KB |
+| Huella estática (cargado e inicializado) | ~82 KB |
 | En reposo, matraz oculto | **0 bytes/frame, sin `OnUpdate` instalado** |
 | Matraz visible pero en reposo (`/mb always on`) | **0 bytes/frame, sin `OnUpdate` instalado** |
-| Matraz animándose a 60 fps (fase azul) | ~0,5 bytes/frame |
-| Fase verde a 60 fps, siguiendo el maná | **sin basura medible** |
-| Ciclo completo de 5 s | ~0,36 KB |
-| `UNIT_POWER_UPDATE` | sin basura medible |
-| Por casteo | 3–12 bytes |
+| 600 frames de fase azul | **0 bytes** |
+| 600 frames de fase verde | **0 bytes/frame** · ~24 bytes por cambio de porcentaje |
+| `UNIT_POWER_UPDATE` | **0 bytes** |
+| Por casteo | ~320 bytes, todo la tabla que devuelve `C_Spell.GetSpellPowerCost` |
+| Ciclo completo de 5 s | ~370 bytes, el casteo incluido |
+| Llamadas al API por frame animando | ~5 |
 | Deriva tras 200 ciclos + 400 casteos + 2000 `UNIT_POWER_UPDATE` | **−0,04 KB (sin fuga)** |
 
-Tres decisiones explican esos números:
+Cuatro decisiones explican esos números:
 
 - **El `OnUpdate` solo está instalado mientras hay algo que animar.** Se pone
   al arrancar el contador y se quita al acabar el fundido. En reposo el addon
   no ejecuta nada por frame, ni siquiera con el matraz visible.
-- **Ni el contador ni el porcentaje construyen cadenas.** La ventana es fija
-  (0,0–5,0) y el porcentaje va de 0 a 100, así que las 51 + 101 cadenas
-  posibles se precalculan al cargar. Un `string.format` por frame generaría
-  basura 60 veces por segundo.
+- **La animación corre a 30 Hz, no por frame.** A 58 px el líquido mide 36 px
+  de alto y la burbuja más rápida lo recorre en 2 segundos: 0,6 px por paso de
+  30 Hz. Pedir 60 Hz era pagar el doble de llamadas al API para mover medio
+  píxel. El nivel del líquido y el contador sí van por frame, que es lo que se
+  mira de cerca. Es `ANIM_STEP` en `Display.lua`.
+- **El contador no construye cadenas.** La ventana es fija (0,0–5,0), así que
+  las 51 posibles se precalculan al cargar; el contador cambia diez veces por
+  segundo. El porcentaje de la fase verde **no** se precalcula: cambia unas
+  pocas veces por segundo, y Lua reaprovecha las cadenas cortas, así que
+  formatearlo en el momento sale gratis en régimen y ahorra ~4 KB residentes.
+  Precalcularlo también era pagar memoria permanente por nada.
 - **La animación no asigna nada.** Las burbujas son una tabla fija, sin
   `math.random` por frame; las olas se desplazan con `SetTexCoord`; y las
   bandas de ola cuelgan del borde superior del líquido, así que subir el nivel
@@ -203,12 +215,12 @@ Tres decisiones explican esos números:
   cambia la décima, y el porcentaje solo cuando cambia el entero. El color del
   destello de cada tick se calcula sobre una tabla que se reutiliza.
 
-De esos ~86 KB, unos 8 KB son `Verify.lua`, que solo se usa una vez para
+De esos ~82 KB, unos 8 KB son `Verify.lua`, que solo se usa una vez para
 comprobar la regla en el juego. Es una decisión consciente: cuesta memoria
 residente a cambio de poder medir en vez de suponer.
 
 Lo único que asigna de forma inevitable es `C_Spell.GetSpellPowerCost`, que
-devuelve una tabla nueva en cada llamada. Son unos pocos bytes por casteo y
+devuelve una tabla nueva en cada llamada. Son ~320 bytes por casteo y
 **no se cachea a propósito**: una aura tipo Clearcasting puede dejar un hechizo gratis,
 y un coste cacheado arrancaría la regla en un casteo que no gastó maná.
 
@@ -286,10 +298,18 @@ Cubren el arranque y reinicio del contador, canalizaciones, deduplicación por
 mock hace que tocar un valor secreto lance error, igual que WoW, así que una
 guarda `issecretvalue()` que falte sale como fallo y no pasa inadvertida.
 
-El banco de memoria va aparte:
+El banco de memoria va aparte, y mide con el recolector parado:
 
 ```
 lua tests/bench.lua
+```
+
+Y el perfilador cuenta llamadas al API por frame en cada fase, que es la otra
+mitad de la pregunta: una animación puede no asignar un solo byte y estar
+llamando al cliente cuarenta veces por frame.
+
+```
+lua tests/profile.lua
 ```
 
 ## Licencia

@@ -55,6 +55,14 @@ local BUBBLES = {
 local WAVE_SPEED_1 = 0.33
 local WAVE_SPEED_2 = -0.21
 
+-- La animacion (olas, burbujas y latido del halo) corre a 30 Hz, no por frame.
+-- A 58 px el liquido mide 36 px de alto y la burbuja mas rapida lo recorre en
+-- 2 s, o sea 0,6 px por paso de 30 Hz: pedir 60 Hz era pagar el doble de
+-- llamadas al API para mover medio pixel. El contador y el nivel del liquido
+-- SI van por frame, que es lo que se mira de cerca. Si en el juego se ve a
+-- saltos, baja esto a 1/60.
+local ANIM_STEP = 1 / 30
+
 -- La ventana es fija (0.0 - 5.0), asi que las 51 cadenas posibles del contador
 -- se construyen una sola vez al cargar. Con esto el OnUpdate no asigna nada:
 -- un string.format por frame generaria basura 60 veces por segundo.
@@ -63,14 +71,8 @@ for i = 0, math.floor(MB.RULE_DURATION * 10) do
     TENTH_TEXT[i] = string.format("%.1f", i / 10)
 end
 
--- Igual que el contador: las 101 cadenas del porcentaje se construyen una vez
--- para que la fase de regen no asigne nada por frame.
-local PERCENT_TEXT = {}
-for i = 0, 100 do
-    PERCENT_TEXT[i] = i .. "%"
-end
-
 local sin, abs, floor, min = math.sin, math.abs, math.floor, math.min
+local format = string.format
 
 -- Color de trabajo del destello. Se reutiliza: una tabla nueva por frame seria
 -- basura 60 veces por segundo.
@@ -203,6 +205,10 @@ function D:Init()
     self.hint = hint
     self.waveOffset1 = 0
     self.waveOffset2 = 0
+    self.animElapsed = 0
+    self.bubblesShown = false
+    -- Ultima opacidad escrita en cada burbuja, para no repetir la llamada.
+    self.bubbleAlpha = {}
 
     self:ApplySettings()
 end
@@ -312,6 +318,7 @@ function D:ShowBubbles(enabled)
     if enabled == self.bubbling then return end
     self.bubbling = enabled
     if not enabled then
+        self.bubblesShown = false
         for i = 1, #self.bubbles do
             self.bubbles[i]:Hide()
         end
@@ -415,7 +422,7 @@ function D:ManaTick()
         self.state = "fading"
         self:SetFill(1)
         self:SetLiquidColor(COLOR_DONE)
-        self:SetText(PERCENT_TEXT[100], false)
+        self:SetText("100%", false)
         return
     end
 
@@ -452,13 +459,28 @@ function D:UpdateBubbles(now)
     local surface = self.bottomPx + self.fill * self.spanPx
     local travel = surface - self.bottomPx
     if travel <= 2 then
-        for i = 1, #self.bubbles do
-            self.bubbles[i]:Hide()
+        -- Casi sin liquido: no hay sitio por donde subir.
+        if self.bubblesShown then
+            self.bubblesShown = false
+            for i = 1, #self.bubbles do
+                self.bubbles[i]:Hide()
+            end
         end
         return
     end
 
+    -- Show() y SetAlpha() solo cuando cambian de verdad: llamarlos siempre era
+    -- un tercio de las llamadas al API de la animacion, y la burbuja pasa el
+    -- 70 % de su vida a opacidad constante.
+    if not self.bubblesShown then
+        self.bubblesShown = true
+        for i = 1, #self.bubbles do
+            self.bubbles[i]:Show()
+        end
+    end
+
     local w = self.width
+    local alphas = self.bubbleAlpha
     for i = 1, #self.bubbles do
         local b = BUBBLES[i]
         local tex = self.bubbles[i]
@@ -473,19 +495,35 @@ function D:UpdateBubbles(now)
         elseif t > 0.82 then
             fade = (1 - t) / 0.18
         end
-        tex:SetAlpha(0.55 * fade)
-        tex:Show()
+        local alpha = 0.55 * fade
+        if alpha ~= alphas[i] then
+            alphas[i] = alpha
+            tex:SetAlpha(alpha)
+        end
     end
 end
 
-function D:OnUpdate(elapsed)
-    local now = GetTime()
-
+-- Todo lo que se mueve por si solo, junto y a 30 Hz. step es el tiempo real
+-- transcurrido desde el paso anterior, no ANIM_STEP: asi la ola avanza lo
+-- mismo sea cual sea la tasa de frames.
+function D:Animate(now, step)
     if self.glowing then
         -- Latido lento. abs(sin) sube y baja mas rapido que un seno pelado,
         -- que es lo que se quiere de un brillo.
         self.glow:SetAlpha(0.5 + 0.5 * abs(sin(now * 3.0)))
     end
+
+    if self.bubbling then
+        self.waveOffset1 = (self.waveOffset1 + WAVE_SPEED_1 * step) % 1
+        self.waveOffset2 = (self.waveOffset2 + WAVE_SPEED_2 * step) % 1
+        self.wave1:SetTexCoord(self.waveOffset1, self.waveOffset1 + WAVE_SPAN, 0, 1)
+        self.wave2:SetTexCoord(self.waveOffset2, self.waveOffset2 + WAVE_SPAN * 0.7, 0, 1)
+        self:UpdateBubbles(now)
+    end
+end
+
+function D:OnUpdate(elapsed)
+    local now = GetTime()
 
     -- Destello de un tick: el liquido se aclara y vuelve. Es lo que hace que
     -- la fase de regen se lea como "esta entrando mana" y no como una imagen fija.
@@ -537,7 +575,9 @@ function D:OnUpdate(elapsed)
 
         if self.shownPercent ~= self.manaPercent then
             self.shownPercent = self.manaPercent
-            self:SetText(PERCENT_TEXT[self.manaPercent] or "", false)
+            -- Un format por cambio de entero, no por frame: unas pocas veces
+            -- por segundo y, siendo cadenas cortas, Lua las reaprovecha.
+            self:SetText(format("%d%%", self.manaPercent), false)
         end
 
         if now - self.lastTickAt >= REGEN_TIMEOUT then
@@ -553,13 +593,15 @@ function D:OnUpdate(elapsed)
         self.frame:SetAlpha(alpha)
     end
 
-    -- Olas y burbujas siguen corriendo mientras el matraz se apaga: congelarlas
-    -- justo cuando se llena deja el ultimo segundo con cara de captura.
-    if self.bubbling then
-        self.waveOffset1 = (self.waveOffset1 + WAVE_SPEED_1 * elapsed) % 1
-        self.waveOffset2 = (self.waveOffset2 + WAVE_SPEED_2 * elapsed) % 1
-        self.wave1:SetTexCoord(self.waveOffset1, self.waveOffset1 + WAVE_SPAN, 0, 1)
-        self.wave2:SetTexCoord(self.waveOffset2, self.waveOffset2 + WAVE_SPAN * 0.7, 0, 1)
-        self:UpdateBubbles(now)
+    -- Olas, burbujas y halo siguen corriendo mientras el matraz se apaga:
+    -- congelarlos justo cuando se llena deja el ultimo segundo con cara de
+    -- captura. Pero a 30 Hz, no por frame.
+    if self.bubbling or self.glowing then
+        self.animElapsed = self.animElapsed + elapsed
+        if self.animElapsed >= ANIM_STEP then
+            local step = self.animElapsed
+            self.animElapsed = 0
+            self:Animate(now, step)
+        end
     end
 end
