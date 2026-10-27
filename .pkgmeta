@@ -7,6 +7,11 @@ manual-changelog:
   markup-type: markdown
 
 ignore:
+  # Copias de prueba para clientes vivos antes del lanzamiento de Forever.
+  # Fuera del zip: anunciarian compatibilidad con Retail y Classic Era, que
+  # todavia no esta verificada.
+  - ManaBreath_Mainline.toc
+  - ManaBreath_Vanilla.toc
   - .github
   - .luarc.json
   - tests

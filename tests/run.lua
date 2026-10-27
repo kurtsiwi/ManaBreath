@@ -563,5 +563,58 @@ MB:Cancel()
 print("\n-- se sabe de donde se leen los costes --")
 check("costApi detectado", MB.costApi, "C_Spell.GetSpellPowerCost")
 
+print("\n-- los .toc no se desincronizan --")
+-- Cuatro archivos que solo se diferencian en la linea de interfaz. Cada vez que
+-- se toca uno (un archivo Lua nuevo, una version, una directiva) hay que tocar
+-- los cuatro, y olvidarse de uno no se nota hasta que el addon no carga en ese
+-- cliente. Esto lo convierte en un fallo de la suite.
+local TOCS = {
+    ["ManaBreath.toc"] = 16001,           -- generico: el que usa Forever si no hay sufijo
+    ["ManaBreath_Camelot.toc"] = 16001,   -- sufijo supuesto de Forever, sin confirmar
+    ["ManaBreath_Mainline.toc"] = 120001, -- Retail de Midnight, solo pruebas
+    ["ManaBreath_Vanilla.toc"] = 11507,   -- Classic Era, solo pruebas
+}
+
+-- Devuelve las directivas (menos Interface) y la lista de archivos. Las lineas
+-- de un solo # son comentarios y no cuentan.
+local function readToc(name)
+    local fh = io.open(REPO .. "/" .. name, "r")
+    if not fh then return nil end
+    local directives, files, interface = {}, {}, nil
+    for line in fh:lines() do
+        line = line:gsub("\r$", "")
+        local key, value = line:match("^##%s*([^:]+):%s*(.-)%s*$")
+        if key then
+            if key == "Interface" then
+                interface = tonumber(value)
+            else
+                directives[#directives + 1] = key .. "=" .. value
+            end
+        elseif line ~= "" and not line:match("^#") then
+            files[#files + 1] = line
+        end
+    end
+    fh:close()
+    return table.concat(directives, "|"), table.concat(files, "|"), interface
+end
+
+local baseDirectives, baseFiles = readToc("ManaBreath.toc")
+local names = {}
+for name in pairs(TOCS) do names[#names + 1] = name end
+table.sort(names)
+for _, name in ipairs(names) do
+    local directives, files, interface = readToc(name)
+    check(name .. " existe", directives ~= nil, true)
+    if directives then
+        check(name .. " interfaz", interface, TOCS[name])
+        check(name .. " mismas directivas", directives == baseDirectives, true)
+        check(name .. " mismos archivos", files == baseFiles, true)
+    end
+end
+
+-- Y que la lista de archivos del .toc sea la que esta suite carga de verdad.
+check("el .toc carga los 5 archivos", baseFiles,
+    "Core.lua|Display.lua|Verify.lua|Commands.lua|Options.lua")
+
 print(("\n%d ok, %d fallos"):format(passes, fails))
 os.exit(fails == 0 and 0 or 1)

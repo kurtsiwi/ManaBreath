@@ -1,0 +1,26 @@
+## Interface: 11507
+# Copia de prueba para Classic Era, el unico cliente vivo con la regla real de
+# vanilla. Sirve para validar las dos suposiciones que Retail no puede: que la
+# regla dura 5.0s y como cobran el mana las canalizaciones.
+# El addon degrada solo: issecretvalue, C_RestrictedActions, C_Spell y el API de
+# ajustes estan todos tras guardas. Sin panel de opciones aqui, todo por /mb.
+# Fuera del paquete publicado (.pkgmeta). Confirmar con /dump select(4, GetBuildInfo())
+## Title: ManaBreath
+## Notes: An animated flask that shows when the 5-second mana regeneration rule is active.
+## Notes-esES: Un matraz animado que indica cuándo está activa la regla de 5 segundos de regeneración de maná.
+## Notes-esMX: Un matraz animado que indica cuándo está activa la regla de 5 segundos de regeneración de maná.
+## Author: kurtsiwi
+## Version: 1.1.0
+## Category: Combat
+## SavedVariables: ManaBreathDB
+## AllowAddOnTableAccess: 0
+## IconTexture: Interface\AddOns\ManaBreath\Art\Icon
+## AddonCompartmentFunc: ManaBreath_OnAddonCompartmentClick
+## X-License: MIT
+## X-Website: https://github.com/kurtsiwi/ManaBreath
+
+Core.lua
+Display.lua
+Verify.lua
+Commands.lua
+Options.lua

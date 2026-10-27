@@ -27,3 +27,5 @@
 /.gitignore     export-ignore
 /.luarc.json    export-ignore
 /.pkgmeta       export-ignore
+/ManaBreath_Mainline.toc export-ignore
+/ManaBreath_Vanilla.toc  export-ignore

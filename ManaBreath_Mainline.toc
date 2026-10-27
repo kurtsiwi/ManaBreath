@@ -1,0 +1,25 @@
+## Interface: 120001
+# Copia de prueba para el Retail de Midnight, que ya esta vivo. Forever corre
+# sobre este motor, asi que cargar aqui prueba el parseo del .toc, el dibujo del
+# matraz, el arrastre, los 19 comandos y el panel de opciones. La regla de 5s no
+# existe en Retail: "/mb verify" debe decir incoherente, y eso es exito.
+# Fuera del paquete publicado (.pkgmeta). Confirmar con /dump select(4, GetBuildInfo())
+## Title: ManaBreath
+## Notes: An animated flask that shows when the 5-second mana regeneration rule is active.
+## Notes-esES: Un matraz animado que indica cuándo está activa la regla de 5 segundos de regeneración de maná.
+## Notes-esMX: Un matraz animado que indica cuándo está activa la regla de 5 segundos de regeneración de maná.
+## Author: kurtsiwi
+## Version: 1.1.0
+## Category: Combat
+## SavedVariables: ManaBreathDB
+## AllowAddOnTableAccess: 0
+## IconTexture: Interface\AddOns\ManaBreath\Art\Icon
+## AddonCompartmentFunc: ManaBreath_OnAddonCompartmentClick
+## X-License: MIT
+## X-Website: https://github.com/kurtsiwi/ManaBreath
+
+Core.lua
+Display.lua
+Verify.lua
+Commands.lua
+Options.lua
