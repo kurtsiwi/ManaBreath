@@ -292,7 +292,11 @@ y un coste cacheado arrancaría la regla en un casteo que no gastó maná.
 
 ## Verificar en el juego (pendiente hasta el lanzamiento)
 
-- [ ] `/dump select(4, GetBuildInfo())` — confirmar que la interfaz es `16001`.
+- [x] ~~Confirmar que la interfaz es `16001`.~~ Confirmado desde el cliente
+      instalado: `.build.info` reporta la versión `1.60.1.70634`, y `1.60.1`
+      codifica como `16001`. Volver a comprobarlo con
+      `/dump select(4, GetBuildInfo())` cuando se pueda jugar, por si el día
+      del lanzamiento llega una compilación nueva.
 - [ ] Confirmar que el addon aparece en la lista. El paquete lleva un solo
       `ManaBreath.toc`, sin sufijo de sabor: el cliente carga el específico de
       su sabor si existe y, si no, el genérico, así que el genérico cubre

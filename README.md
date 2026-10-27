@@ -312,7 +312,10 @@ moving both.
 
 ## To verify in game (pending until launch)
 
-- [ ] `/dump select(4, GetBuildInfo())` — confirm the interface is `16001`.
+- [x] ~~Confirm the interface is `16001`.~~ Confirmed from the installed
+      client: `.build.info` reports version `1.60.1.70634`, and `1.60.1`
+      encodes as `16001`. Re-check with `/dump select(4, GetBuildInfo())`
+      once the game is playable, in case launch day ships a new build.
 - [ ] Confirm the addon shows up in the addon list at all. The package ships
       a single `ManaBreath.toc`, with no flavor suffix: the client loads the
       flavor-specific file if one exists and falls back to the generic one, so
