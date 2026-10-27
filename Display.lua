@@ -11,6 +11,11 @@ ns.display = D
 -- arte sale sola y no hay que tocarla si el paquete se renombra.
 local ART = "Interface\\AddOns\\" .. ADDON_NAME .. "\\Art\\"
 
+-- Una gota, al cumplirse la regla, que es el instante en que el mana vuelve
+-- a subir. OGG y no MP3: los dos cargan, pero el soporte de MP3 se rompio
+-- una vez y cuando falla no da error, simplemente no suena.
+local SOUND_DROP = "Interface\\AddOns\\" .. ADDON_NAME .. "\\Sound\\ManaDrop.ogg"
+
 local COLOR_ACTIVE = { 0.26, 0.52, 0.98 }
 local COLOR_DONE   = { 0.35, 0.95, 0.62 }
 local COLOR_IDLE   = { 0.40, 0.40, 0.46 }
@@ -559,7 +564,14 @@ function D:Finish()
     -- subir, y eso es lo que marca el brillo.
     self:SetGlow(db.glow == "regen", COLOR_DONE)
     if db.sound then
-        PlaySound(SOUNDKIT.READY_CHECK, "Master")
+        -- PlaySoundFile dice si va a sonar. Si el archivo falta porque alguien
+        -- descomprimio el addon a medias, callarlo dejaria un mando que no
+        -- hace nada sin que nadie sepa por que. Se avisa una vez por sesion.
+        local willPlay = PlaySoundFile and PlaySoundFile(SOUND_DROP, "Master")
+        if not willPlay and not self.soundWarned then
+            self.soundWarned = true
+            MB:Debug("no se pudo reproducir", SOUND_DROP)
+        end
     end
 end
 

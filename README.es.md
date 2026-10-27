@@ -53,6 +53,12 @@ vuelves a gastar maná (y entonces arranca otra vez la regla azul) o pasan
 no avisa de cada tick de maná, el matraz se apaga en vez de quedarse encendido
 para siempre. Con `/mb regen off` el matraz se apaga en cuanto acaba la regla.
 
+Con `/mb sound on` suena una gota justo al cumplirse la regla, que es el
+instante en que el maná vuelve a subir. Es un archivo propio del addon
+(`Sound/ManaDrop.ogg`, 8,5 KB) y no un sonido prestado de la interfaz, y suena
+en las dos pieles. Si el archivo faltara por haber descomprimido el addon a
+medias, `/mb debug on` lo dice, en vez de dejar un mando que no hace nada.
+
 El brillo alumbra una sola fase, la que elijas: encenderlo en las dos lo dejaría
 sin decir nada. Por defecto (`/mb glow regen`) alumbra la verde, que es la única
 en la que de verdad estás recuperando maná; `/mb glow rule` lo pasa a los
@@ -117,7 +123,7 @@ nota en el matraz aunque la regla esté corriendo.
 | `/mb style flask/text` | Matraz animado, o solo letras |
 | `/mb scale <0.5 - 3>` | Escala del matraz: la forma correcta de agrandarlo |
 | `/mb size <ancho> <alto>` | Tamaño del marco; el dibujo supone un marco cuadrado |
-| `/mb sound on/off` | Aviso sonoro al terminar la regla |
+| `/mb sound on/off` | Una gota de agua al terminar la regla |
 | `/mb glow regen/rule/off` | Cuándo brilla el matraz |
 | `/mb regen on/off` | Seguir el maná que vuelve cuando la regla acaba |
 | `/mb text on/off` | Contador dentro del bulbo |

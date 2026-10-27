@@ -252,6 +252,10 @@ slash("test")
 check("demo activa", MB:IsActive(), true)
 MOCK:advance(5.2)
 check("suena al terminar", MOCK.sounds, 1)
+-- Un archivo propio, no un sonido prestado de la interfaz: el READY_CHECK
+-- que habia antes no tenia nada que ver con mana.
+check("y es la gota del addon",
+    (MOCK.lastSoundFile or ""):find("Sound\\ManaDrop.ogg", 1, true) ~= nil, true)
 slash("always on")
 check("mostrar siempre", ManaBreathDB.alwaysShow, true)
 MOCK:advance(2)

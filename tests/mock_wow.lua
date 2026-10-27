@@ -23,6 +23,11 @@ C_Timer = {
     end,
 }
 function PlaySound() M.sounds = M.sounds + 1 end
+function PlaySoundFile(path)
+    M.sounds = M.sounds + 1
+    M.lastSoundFile = path
+    return true
+end
 SOUNDKIT = { READY_CHECK = 1 }
 SlashCmdList = {}
 Enum = { PowerType = { Mana = 0, Rage = 1 } }

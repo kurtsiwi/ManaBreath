@@ -2,6 +2,18 @@
 
 ## 1.2.0
 
+- **Una gota de agua al cumplirse la regla**, que es el instante en que el mana
+  vuelve a subir. Sustituye al `SOUNDKIT.READY_CHECK` de la 1.0, que era un
+  sonido prestado de la interfaz sin nada que ver con el mana. Suena en las dos
+  pieles y sigue mandado por `/mb sound on/off`: un interruptor, un sonido.
+- El audio va en `Sound/ManaDrop.ogg`: 8,5 KB, mono, 44,1 kHz, 0,60 s. OGG y no
+  MP3 porque los dos cargan, pero el soporte de MP3 se rompio una vez y, cuando
+  falla, no da error: simplemente no suena. Del original se recorto la cola
+  muda (de 1,03 s a 0,60 s, con desvanecido para no dejar un chasquido) y se
+  normalizo el pico a -1,3 dBFS.
+- Si el archivo faltara, `PlaySoundFile` lo dice y el addon lo imprime con
+  `/mb debug on`, una vez por sesion. Un mando que no hace nada sin explicar
+  por que es peor que uno que no esta.
 - **Modo texto.** `/mb style text` cambia el matraz por una lectura sobria,
   solo de letras: la cifra y debajo una etiqueta pequena espaciada (`5 S R`
   durante la regla, `M A N A` mientras regeneras). `/mb style flask` vuelve al

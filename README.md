@@ -53,6 +53,12 @@ tick. That last one is a safety net: if this client does not report every mana
 tick, the flask goes out instead of staying lit forever. With `/mb regen off`
 the flask goes out as soon as the rule ends.
 
+With `/mb sound on` a single water drop plays the moment the rule ends,
+which is the moment mana starts coming back. It is the addon's own file
+(`Sound/ManaDrop.ogg`, 8.5 KB), not a borrowed interface cue, and it plays in
+both looks. If the file is missing because the addon was unpacked incompletely,
+`/mb debug on` says so instead of leaving a switch that quietly does nothing.
+
 The glow lights exactly one phase, whichever you pick — lighting both would say
 nothing. By default (`/mb glow regen`) it lights the green one, the only phase
 where you are actually getting mana back; `/mb glow rule` moves it to the
@@ -115,7 +121,7 @@ flask even mid-rule.
 | `/mb style flask/text` | Animated flask, or text only |
 | `/mb scale <0.5 - 3>` | Flask scale — the right way to resize it |
 | `/mb size <width> <height>` | Frame size; the art assumes a square frame |
-| `/mb sound on/off` | Sound cue when the rule ends |
+| `/mb sound on/off` | A water drop when the rule ends |
 | `/mb glow regen/rule/off` | When the flask glows |
 | `/mb regen on/off` | Track the mana coming back after the rule |
 | `/mb text on/off` | Countdown inside the bulb |
