@@ -2,139 +2,150 @@
 
 ## 1.2.0
 
-- **Una gota de agua al cumplirse la regla**, que es el instante en que el mana
-  vuelve a subir. Sustituye al `SOUNDKIT.READY_CHECK` de la 1.0, que era un
-  sonido prestado de la interfaz sin nada que ver con el mana. Suena en las dos
-  pieles y sigue mandado por `/mb sound on/off`: un interruptor, un sonido.
-- El audio esta adaptado de *Waterdrop*, de DRAGON-STUDIO, en Pixabay, bajo la
-  Licencia de contenido de Pixabay: permite uso comercial y modificacion y no
-  exige atribucion, pero se acredita igual en el README.
-- El archivo va en `Sound/ManaDrop.ogg`: 8,5 KB, mono, 44,1 kHz, 0,60 s. OGG y no
-  MP3 porque los dos cargan, pero el soporte de MP3 se rompio una vez y, cuando
-  falla, no da error: simplemente no suena. Del original se recorto la cola
-  muda (de 1,03 s a 0,60 s, con desvanecido para no dejar un chasquido) y se
-  normalizo el pico a -1,3 dBFS.
-- Si el archivo faltara, `PlaySoundFile` lo dice y el addon lo imprime con
-  `/mb debug on`, una vez por sesion. Un mando que no hace nada sin explicar
-  por que es peor que uno que no esta.
-- **Modo texto.** `/mb style text` cambia el matraz por una lectura sobria,
-  solo de letras: la cifra y debajo una etiqueta pequena espaciada (`5 S R`
-  durante la regla, `M A N A` mientras regeneras). `/mb style flask` vuelve al
-  matraz. Tambien esta en el panel, lo primero de Aspecto.
-- Es una **piel, no un segundo display**: las dos corren el mismo motor, con
-  los mismos estados, los mismos tiempos y la misma deteccion. Lo unico que
-  cambia es que se dibuja, asi que un arreglo en la regla vale para las dos.
-  El destello de cada tick de mana existe en las dos: en el matraz lo lleva el
-  liquido, en modo texto la cifra.
-- En modo texto no hay halo ni burbujas: el halo es la silueta del matraz y las
-  burbujas suben por dentro del cristal, asi que sin matraz no rodean ni suben
-  por nada. `/mb text off` tampoco hace nada, porque la cifra es lo unico que
-  hay en pantalla. El comando lo dice al cambiar de piel, en vez de dejar tres
-  mandos que parecen rotos.
-- Apagar esas tres cosas es ademas lo que deja al modo texto **sin nada que
-  animar**: baja de ~5 llamadas al API por frame a ~1. `tests/profile.lua` mide
-  las dos pieles, asi que si algo del matraz se colara en modo texto, se veria.
-- El marco se dimensiona a la cadena mas ancha que puede llegar a mostrar,
-  medida una sola vez al colocar: asi el bloque no cambia de tamano al pasar de
-  `4.3` a `regen` y el area de arrastre abraza lo que se ve. `/mb size` sigue
-  poniendo el alto, que es lo que manda sobre el cuerpo de letra; el ancho lo
-  pone el texto.
-- La cifra del matraz lleva `OUTLINE` porque va sobre el cristal y el liquido.
-  La del modo texto va sobre el fondo del juego, donde el borde se lee como un
-  contorno grueso: ahi lleva una sombra corta.
-- Las pruebas cubren la piel nueva entera, incluido que volver al matraz lo
-  devuelva completo y no a medias.
-- Nueva comprobacion de que los `.toc` no se desincronizan: solo pueden
-  diferenciarse en la linea `## Interface`, y su lista de archivos Lua tiene
-  que ser la que las pruebas cargan. Cuatro archivos casi identicos no se
-  revisan a ojo.
-- **Fuera el `.toc` con sufijo de sabor** (`ManaBreath_Camelot.toc`). El
-  sufijo de Forever nunca se confirmo, y daba igual: el generico ya lleva la
-  interfaz `16001` y es el que carga cuando ningun sufijo coincide, asi que la
-  copia con sufijo solo podia acertar lo que el generico ya hacia. Se publica
-  un unico `ManaBreath.toc`.
-- Copias de prueba `ManaBreath_Mainline.toc` (Retail, `120001`) y
-  `ManaBreath_Vanilla.toc` (Classic Era, `11507`) para poder probar carga,
-  dibujo y comandos en clientes vivos antes de que Forever lance. Quedan fuera
-  del paquete publicado: anunciarian una compatibilidad sin verificar.
-- La huella estatica sube a ~106 KB mas ~12 KB del panel. Los ~12 KB de la
-  piel de texto se pagan se use o no, porque las dos se construyen al cargar y
-  cambiar de piel no deberia montar widgets a mitad de una regla.
+### A second look
+
+- **Text mode.** `/mb style text` swaps the flask for a sober, letters-only
+  readout: the figure, and a small spaced label underneath (`5 S R` while the
+  rule runs, `M A N A` while mana comes back). `/mb style flask` returns to the
+  flask. It is also the first entry in the options panel.
+- It is a **skin, not a second display**: both run the same engine, with the
+  same states, the same timings and the same detection. Only the drawing
+  differs, so a fix to the rule lands in both. The per-tick flash exists in
+  both: on the flask it is carried by the liquid, in text mode by the figure.
+- Text mode has no glow and no bubbles. The glow is the flask's silhouette and
+  the bubbles rise inside the glass, so with no flask there is nothing to
+  surround and nothing to rise through. `/mb text off` does nothing either,
+  because the figure is the only thing on screen. The command says so when you
+  switch, instead of leaving three controls that look broken.
+- Turning those three off is also what leaves text mode with **nothing to
+  animate**: it drops from about 5 API calls per frame to about 1.
+- The frame sizes itself to the widest string it can ever show, measured once,
+  so the block does not change size between `4.3` and `regen` and the drag area
+  hugs what you see. `/mb size` still sets the height, which drives the font;
+  the width comes from the text.
+- The flask's figure uses `OUTLINE` because it sits over the glass and the
+  liquid. Text mode sits over the game's own background, where an outline reads
+  as a thick border, so it uses a short shadow instead.
+
+### A sound of its own
+
+- **A water drop when the rule is fulfilled**, which is the moment mana starts
+  climbing again. It replaces the `SOUNDKIT.READY_CHECK` of 1.0, an interface
+  cue borrowed from the game that had nothing to do with mana. It plays in both
+  looks and is still governed by `/mb sound on/off`: one switch, one sound.
+- The audio is adapted from *Waterdrop* by DRAGON-STUDIO, from Pixabay, under
+  the Pixabay Content License: it allows commercial use and modification and
+  does not require attribution, but the credit is given in the README anyway.
+- The file lives in `Sound/ManaDrop.ogg`: 8.5 KB, mono, 44.1 kHz, 0.60 s. Ogg
+  and not MP3 because both load, but MP3 support broke once and when it fails
+  it gives no error, it simply stays silent. The silent tail of the original
+  was trimmed (1.03 s to 0.60 s, with a fade so it does not end on a click) and
+  the peak was normalised to -1.3 dBFS.
+- If the file were missing, `PlaySoundFile` says so and the addon prints it
+  under `/mb debug on`, once per session. A control that does nothing without
+  explaining why is worse than one that is not there.
+
+### Packaging and tests
+
+- The tests cover the new skin end to end, including that switching back to the
+  flask restores it whole and not half-way, and that the drop plays in both
+  looks exactly once.
+- New check that the `.toc` files cannot drift apart: they may differ only in
+  the `## Interface` line, and their list of Lua files has to be the one the
+  test suite loads. Near-identical files are not reviewed by eye.
+- **The flavour-suffixed `.toc` is gone.** Forever's suffix was never
+  confirmed, and it turned out not to matter: the generic file already carries
+  interface `16001` and is the one that loads when no suffix matches, so the
+  suffixed copy could only ever duplicate what the generic already did. A
+  single `ManaBreath.toc` is published.
+- Test copies `ManaBreath_Mainline.toc` (Retail, `120001`) and
+  `ManaBreath_Vanilla.toc` (Classic Era, `11507`), so loading, drawing and the
+  commands can be checked on live clients before Forever launches. They are
+  kept out of the published package: they would advertise compatibility that
+  has not been verified.
+- The static footprint rises to about 106 KB plus about 12 KB for the panel.
+  The text skin's ~12 KB are paid whether you use it or not, because both skins
+  are built at load: switching between them should not have to construct
+  widgets in the middle of a rule.
 
 ## 1.1.0
 
-- La barra pasa a ser un **matraz**: el líquido sube durante los 5 segundos y
-  el contador va dentro del bulbo.
-- Superficie animada (dos capas de ola a distinta velocidad) y burbujas que
-  suben mientras la regla corre.
-- **Fase de regeneración**: al acabar la regla el matraz no se apaga, se pone
-  verde y se queda marcando el maná que entra. El líquido sigue tu maná real,
-  el número pasa a ser el porcentaje y cada tick de maná da un destello. La
-  fase se cierra al llenarse el maná, al salir de combate, al volver a gastar
-  maná (que reinicia la regla) o a los 4 segundos sin ningún tick, que es la
-  red de seguridad si el cliente no avisa de cada uno. `/mb regen off` vuelve
-  al aviso corto de la 1.0.
-- **Brillo alrededor del matraz** mientras estás regenerando, que es la fase
-  verde. `/mb glow rule` lo pasa a los 5 segundos de la regla y `/mb glow off`
-  lo apaga.
-- Arte propio, generado con `tools/make_art.py`: el líquido se recorta con una
-  `MaskTexture` con la forma del interior del cristal, así que nada se sale del
-  matraz. Sin la máscara el addon sigue funcionando con el líquido encogido.
-- Icono propio en la lista de addons.
-- Tamaño por defecto 58x58. El dibujo está pensado para un marco cuadrado:
-  para agrandarlo sin deformarlo, `/mb scale`.
-- El `OnUpdate` sigue sin asignar memoria por frame —la fase verde incluida— y
-  sigue desinstalado en reposo.
-- Las olas, las burbujas y el latido del halo pasan a 30 Hz (`ANIM_STEP`). A
-  58 px nada avanza más de medio píxel por paso, así que 60 Hz eran el doble de
-  llamadas al API para el mismo dibujo: de ~16 a ~5 llamadas por frame. El
-  nivel del líquido y el contador siguen yendo por frame.
-- `Show()` y `SetAlpha()` de las burbujas solo se llaman cuando cambian de
-  verdad. Antes se llamaban las dos en cada frame y cada burbuja pasa el 70 %
-  de su vida a opacidad constante.
-- El banco de memoria mide con el recolector parado. Corriendo, lo que medía no
-  era lo que el addon asigna sino lo que el recolector no alcanzó a liberar, y
-  eso depende del tamaño del montón: de ahí salían los "3–12 bytes por casteo"
-  de la 1.0, cuando la cifra real es ~320, toda ella la tabla que devuelve
-  `C_Spell.GetSpellPowerCost`. Los frames, en cambio, son cero de verdad.
-- Nuevo `tests/profile.lua`: cuenta llamadas al API por frame en cada fase.
-- **Panel de opciones** en Opciones → AddOns, con `/mb config` y botón en el
-  compartimento de addons. Lo dibuja el juego a partir de las opciones que el
-  addon declara, y el valor vive en `ManaBreathDB`, así que el panel y los
-  comandos no pueden desincronizarse. Si este cliente no expusiera el API de
-  ajustes, no se registra panel y todo sigue por `/mb`.
-- El modo de brillo se aplica en caliente (`RefreshGlow`): antes, cambiarlo a
-  mitad de un ciclo no se notaba hasta el siguiente.
-- `debug` pasa a estar declarado en los valores por defecto. El panel necesita
-  un valor por defecto del tipo correcto para cada opción que muestra.
+- The bar becomes a **flask**: the liquid rises through the 5 seconds and the
+  counter sits inside the bulb.
+- An animated surface (two wave layers at different speeds) and bubbles rising
+  while the rule runs.
+- **Regeneration phase**: when the rule ends the flask does not go out, it
+  turns green and starts marking the mana coming in. The liquid follows your
+  real mana, the number becomes a percentage, and every mana tick lands as a
+  flash. The phase closes when mana fills up, when you leave combat, when you
+  spend mana again (which restarts the rule), or after 4 seconds without a
+  single tick, which is the safety net if the client does not report each one.
+  `/mb regen off` returns to the short cue of 1.0.
+- **A glow around the flask** while you are regenerating, which is the green
+  phase. `/mb glow rule` moves it to the 5 seconds of the rule and
+  `/mb glow off` turns it off.
+- Its own artwork, generated by `tools/make_art.py`: the liquid is clipped by a
+  `MaskTexture` shaped like the inside of the glass, so nothing spills outside
+  the flask. Without the mask the addon still works, with the liquid narrowed.
+- Its own icon in the addon list.
+- Default size 58x58. The drawing assumes a square frame: to make it bigger
+  without distorting it, use `/mb scale`.
+- The `OnUpdate` still allocates nothing per frame, the green phase included,
+  and is still uninstalled at rest.
+- The waves, the bubbles and the glow's pulse move to 30 Hz (`ANIM_STEP`). At
+  58 px nothing advances more than half a pixel per step, so 60 Hz was twice
+  the API calls for the same drawing: from about 16 to about 5 calls per frame.
+  The liquid level and the counter still run per frame.
+- `Show()` and `SetAlpha()` on the bubbles are only called when they actually
+  change. Before, both were called every frame, and a bubble spends 70% of its
+  life at a constant opacity.
+- The memory bench measures with the collector stopped. With it running, what
+  was measured was not what the addon allocates but what the collector had not
+  freed in time, which shifts with the size of the heap: that is where 1.0's
+  "3-12 bytes per cast" came from, when the real figure is about 320, all of it
+  the table `C_Spell.GetSpellPowerCost` returns. The frames, by contrast, are
+  genuinely zero.
+- New `tests/profile.lua`: counts API calls per frame in each phase.
+- **Options panel** under Options -> AddOns, with `/mb config` and a button in
+  the addon compartment. The game draws it from the options the addon declares,
+  and the value lives in `ManaBreathDB`, so the panel and the commands cannot
+  fall out of step. If a client does not expose the settings API, no panel is
+  registered and everything still works through `/mb`.
+- The glow mode applies live (`RefreshGlow`): before, changing it mid-cycle was
+  not visible until the next one.
+- `debug` is now declared in the defaults. The panel needs a default of the
+  right type for every option it shows.
 
 ## 1.0.0
 
-Primera versión.
+First release.
 
-- Barra que se llena durante los 5 segundos de la regla de regeneración de maná.
-- Detección por `UNIT_SPELLCAST_SUCCEEDED` + `C_Spell.GetSpellPowerCost`, sin depender del combat log.
-- Soporte de canalizaciones (inicio y fin del canal).
-- Manejo de Secret Values: confirmación por bajada de maná cuando el costo no se puede leer.
-- Deduplicación de casteos por `castGUID`.
-- Respaldo opcional por `UNIT_POWER_UPDATE` (`/mb fallback on`).
-- `/mb status` informa del contexto restringido vía `C_RestrictedActions`.
-- Visible solo en clases y formas con maná.
-- Barra arrastrable, con posición y opciones guardadas en SavedVariables.
-- `OnUpdate` instalado solo mientras hay algo que animar: 0 bytes por frame en
-  reposo, incluso con la barra visible.
-- Contador sin asignaciones: las 51 cadenas de la ventana de 5 s se
-  precalculan al cargar.
-- Texto y chispa se actualizan solo cuando cambian.
-- Ventana de confirmación simétrica: el orden en que llegan
-  `UNIT_POWER_UPDATE` y `UNIT_SPELLCAST_SUCCEEDED` no afecta la detección.
-- Los costes con `hasRequiredAura` no cuentan como coste seguro, así que un
-  hechizo que un aura dejó gratis no arranca la regla.
-- `/mb channel off` desactiva el reinicio al cortar una canalización.
-- `/mb verify` mide contra el cliente si la regla de 5 s existe y cuánto dura,
-  usando `GetPowerRegen()` como referencia.
-- Un coste `nil` se interpreta como "sin coste de recursos" y no como
-  "ilegible", así que un instantáneo gratis no reclama una bajada de maná ajena.
-- `/mb status` informa de qué API de costes se encontró, para que la falta de
-  las dos no degrade el addon en silencio.
-- Comandos `/mb` (lock, unlock, test, scale, size, sound, text, always, fallback, reset, status).
+- A bar that fills through the 5 seconds of the mana regeneration rule.
+- Detection via `UNIT_SPELLCAST_SUCCEEDED` + `C_Spell.GetSpellPowerCost`, with
+  no dependency on the combat log.
+- Channel support (channel start and stop).
+- Secret Values handling: confirmation by mana drop when the cost cannot be
+  read.
+- Cast deduplication by `castGUID`.
+- Optional fallback via `UNIT_POWER_UPDATE` (`/mb fallback on`).
+- `/mb status` reports the restricted context via `C_RestrictedActions`.
+- Visible only on classes and forms that use mana.
+- Draggable bar, with position and options saved in SavedVariables.
+- `OnUpdate` installed only while there is something to animate: 0 bytes per
+  frame at rest, even with the bar visible.
+- An allocation-free counter: the 51 strings of the 5 s window are precomputed
+  at load.
+- Text and spark update only when they change.
+- Symmetric confirmation window: the order in which `UNIT_POWER_UPDATE` and
+  `UNIT_SPELLCAST_SUCCEEDED` arrive does not affect detection.
+- Costs with `hasRequiredAura` do not count as a safe cost, so a spell an aura
+  made free does not start the rule.
+- `/mb channel off` disables the restart when a channel is cut.
+- `/mb verify` measures against the client whether the 5 s rule exists and how
+  long it lasts, using `GetPowerRegen()` as the reference.
+- A `nil` cost is read as "no resource cost" and not as "unreadable", so a free
+  instant does not claim somebody else's mana drop.
+- `/mb status` reports which cost API was found, so that the absence of both
+  does not degrade the addon silently.
+- `/mb` commands (lock, unlock, test, scale, size, sound, text, always,
+  fallback, reset, status).
