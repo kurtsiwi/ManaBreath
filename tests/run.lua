@@ -275,7 +275,7 @@ check("categoria registrada en Ajustes", O.category.registered, true)
 
 local declared = 0
 for _ in pairs(O.settings) do declared = declared + 1 end
-check("opciones declaradas", declared, 11)
+check("opciones declaradas", declared, 12)
 
 -- Lo que importa de la forma moderna del API: el valor no vive en una variable
 -- del sistema, vive en ManaBreathDB. Si no, el panel y /mb serian dos verdades.
@@ -580,10 +580,12 @@ check("la piel cambia", D.textMode, true)
 check("sin cristal", D.glass:IsShown(), false)
 check("sin liquido", D.liquid:IsShown(), false)
 check("con etiqueta", D.label:IsShown(), true)
+check("con mana por segundo", D.rateText:IsShown(), true)
 
 -- El marco deja de ser el cuadrado del matraz: lo pone la cadena mas larga que
 -- puede aparecer, para que no cambie de tamano a mitad de una cuenta atras.
 local textWidth = D.frame:GetWidth()
+local textHeight = D.frame:GetHeight()
 check("el marco no es el del matraz", textWidth ~= ManaBreathDB.width, true)
 slash("test")
 MOCK:advance(0.1)
@@ -622,6 +624,30 @@ MOCK:advance(1)
 check("entra en regen", D.state, "regen")
 check("etiqueta del mana", D.label:GetText(), "M A N A")
 check("la cifra es el porcentaje", D.timeText:GetText():find("%%") ~= nil, true)
+
+-- El mana por segundo, que ya no es solo de la barra: aqui va de tercera
+-- linea, debajo de la etiqueta. El primer tick solo fija el origen, igual que
+-- alla: entre el fin de la regla y ese tick cabe cualquier fraccion del
+-- intervalo, y dividir por ella daria una cifra disparatada.
+check("sin tasa todavia", D.rateText:GetText(), "")
+MOCK.mana = MOCK.mana + 100
+MOCK:fire("UNIT_POWER_UPDATE", "player", "MANA")
+MOCK:advance(2)
+check("el primer tick solo fija el origen", D.rateText:GetText(), "")
+MOCK.mana = MOCK.mana + 100
+MOCK:fire("UNIT_POWER_UPDATE", "player", "MANA")
+check("el segundo ya mide, tambien en texto", D.rateText:GetText(), "50.0/s")
+check("y el bloque no se movio", D.frame:GetHeight(), textHeight)
+
+-- Apagada se sigue midiendo: la medida es del motor y la linea es de la piel.
+-- Volver a encenderla a mitad de la fase verde tiene que pintar lo medido, no
+-- esperar al tick siguiente.
+slash("rate off")
+check("la linea se va", D.rateText:IsShown(), false)
+check("y el bloque se encoge", D.frame:GetHeight() < textHeight, true)
+slash("rate on")
+check("vuelve con lo ya medido", D.rateText:GetText(), "50.0/s")
+check("y con el bloque de antes", D.frame:GetHeight(), textHeight)
 
 -- El destello de cada tick existe en las dos pieles: en el matraz lo lleva el
 -- liquido, aqui la cifra. Es el mismo codigo llamando a SetPhaseColor.
@@ -760,6 +786,13 @@ MOCK:advance(1 / 60)
 check("y el destello de cada tick sigue vivo",
     D.barFill.color[1] > 0.4, true)
 
+-- La opcion es una y manda en las dos pieles planas: es la misma cifra.
+slash("rate off")
+check("el mana por segundo se quita tambien aqui", D.rateText:IsShown(), false)
+check("sin tocar la barra", D.barTrack:IsShown(), true)
+slash("rate on")
+check("y vuelve con lo ya medido", D.rateText:GetText(), "50.0/s")
+
 -- La tasa es de la fase verde. Una regla nueva no la hereda: mientras corre
 -- no entra mana, asi que dejar ahi la ultima cifra seria mentir.
 MOCK:fire("UNIT_SPELLCAST_SUCCEEDED", "player", "bar-2", 100)
@@ -781,6 +814,9 @@ check("y la barra se va", D.barFill:IsShown(), false)
 check("sin perder la cuenta", MB:Remaining() > 3.9 and MB:Remaining() < 4.1, true)
 check("el liquido vuelve a llevar el color",
     D.liquid.color[3] > D.liquid.color[2], true)
+-- El matraz no dibuja la tasa aunque la opcion este encendida: no hay sitio
+-- para una segunda cifra sobre el cristal.
+check("el matraz no dibuja la tasa", D.rateText:IsShown(), false)
 slash("style bar")
 check("y la barra vuelve entera", D.barFill:IsShown(), true)
 check("con la etiqueta puesta", D.label:GetText(), "5 S R")

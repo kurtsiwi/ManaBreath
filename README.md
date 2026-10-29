@@ -67,11 +67,13 @@ where you are actually getting mana back; `/mb glow rule` moves it to the
 ### Three looks
 
 The flask is one skin, not the addon. `/mb style text` swaps it for a sober
-text-only readout: the figure, and a small spaced label underneath.
+text-only readout: the figure, a small spaced label underneath, and under that
+the mana per second.
 
 ```
       4.3                 62%
      5 S R               M A N A
+                          15.8/s
 ```
 
 `/mb style bar` swaps it for a horizontal bar that fills over the 5 seconds,
@@ -90,7 +92,7 @@ the label on the left and the mana per second on the right.
 | --- | --- | --- | --- |
 | The rule is running | Liquid rising, waves, bubbles | `4.3` in blue, over `5 S R` | Blue bar filling, `4.3` on it |
 | The rule is over | Full flask, `regen` | `regen` in green, over `5 S R` | Full green bar, `regen` |
-| Regenerating | Liquid tracks your mana | `62%` in green, over `M A N A` | Green bar tracks your mana, with the mana per second |
+| Regenerating | Liquid tracks your mana | `62%` in green, over `M A N A` and the mana per second | Green bar tracks your mana, with the mana per second |
 | A tick landed | The liquid flashes | The figure flashes | The bar flashes |
 | Glow | Optional, around the flask | None — there is no silhouette to light | None — same reason |
 
@@ -108,13 +110,20 @@ height, which is what drives the font, while the width comes from the text.
 The bar has no glow or bubbles either, for the same reason, but it does keep
 `/mb text off`: the bar goes on counting without the figure. Its width is
 yours, through `/mb size`, but never less than about three times the height —
-below that it stops reading as a bar and starts reading as a square. The
-**mana per second** shows up with the second regeneration tick, not the first:
-between the end of the rule and the first tick there can be any fraction of an
+below that it stops reading as a bar and starts reading as a square.
+
+The **mana per second** belongs to the engine, not to one skin: both flat skins
+print it, the bar to the right of the label and text mode on a third line under
+it, and only the flask leaves it out, because there is no room for a second
+figure over the glass. `/mb rate off`, or the box in the panel, takes it away
+in both. It shows up with the second regeneration tick, not the first: between
+the end of the rule and the first tick there can be any fraction of an
 interval, and dividing by it would print a wild figure at the very moment you
 are looking. It is measured from the first tick onwards, as a running average,
 and it is cleared when a new rule starts — while the rule runs no mana is
-coming in, so leaving the last figure there would be a lie.
+coming in, so leaving the last figure there would be a lie. In text mode the
+line's space is reserved whether or not there is a figure yet: if it were born
+with the first measurement, the whole block would jump mid-phase.
 
 Text mode is the cheapest one: with no waves, bubbles or glow there is nothing
 to animate, which drops it from ~5 API calls per frame to ~1. The bar sits in
@@ -151,6 +160,7 @@ flask even mid-rule.
 | `/mb glow regen/rule/off` | When the flask glows |
 | `/mb regen on/off` | Track the mana coming back after the rule |
 | `/mb text on/off` | Countdown inside the bulb |
+| `/mb rate on/off` | Mana per second, in the bar and in text mode |
 | `/mb always on/off` | Keep the flask always visible |
 | `/mb fallback on/off` | Also detect via mana drops |
 | `/mb channel on/off` | Restart the countdown when a channel is cut |
@@ -261,11 +271,11 @@ which shifts with the size of the heap. The bench measured that way up to
 
 | | |
 | --- | --- |
-| Static footprint (loaded and initialized) | ~131 KB, plus ~12 KB once the panel registers |
+| Static footprint (loaded and initialized) | ~134 KB, plus ~13 KB once the panel registers |
 | Idle, flask hidden | **0 bytes/frame, no `OnUpdate` installed** |
 | Flask visible but idle (`/mb always on`) | **0 bytes/frame, no `OnUpdate` installed** |
 | 600 frames of the blue phase | **0 bytes** |
-| 600 frames of the green phase | **0 bytes/frame** · ~24 bytes per percentage change, plus one string per tick for the mana per second in bar mode |
+| 600 frames of the green phase | **0 bytes/frame** · ~24 bytes per percentage change, plus one string per tick for the mana per second in the bar and in text mode |
 | `UNIT_POWER_UPDATE` | **0 bytes** |
 | Per cast | ~320 bytes, all of it the table `C_Spell.GetSpellPowerCost` returns |
 | One full 5 s cycle | ~370 bytes, the cast included |
@@ -295,16 +305,16 @@ Four decisions account for those numbers:
   and the percentage only when the integer does. The per-tick flash colour is
   computed into a table that gets reused.
 
-Of those ~143 KB, about 6 KB is `Verify.lua`, which is only used once to check
+Of those ~147 KB, about 6 KB is `Verify.lua`, which is only used once to check
 the rule in game, and about 29 KB is the options panel: ~17 KB of `Options.lua`
 and ~12 KB of the objects the settings system creates when the eleven settings
 are declared. Both are conscious calls of the same kind: resident memory in
 return for an addon you can measure and configure without reading the README.
 If those 29 KB ever got in the way, dropping `Options.lua` from the `.toc`
-returns the addon to ~114 KB and nothing else changes — the commands do not
+returns the addon to ~117 KB and nothing else changes — the commands do not
 depend on the panel.
 
-The two skins that are not the flask cost about 35 KB of that total — ~12 KB
+The two skins that are not the flask cost about 36 KB of that total — ~13 KB
 the text one, ~23 KB the bar — and they cost it whether or not you use them:
 all three are built at load, so switching between them draws immediately
 instead of constructing widgets mid-rule. Almost none of that is the widgets

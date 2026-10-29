@@ -31,6 +31,7 @@ local function Help()
     print("  |cffffff00/mb regen on/off|r - seguir el mana que vuelve tras la regla")
     print("  |cffffff00/mb sound on/off|r - aviso sonoro al terminar")
     print("  |cffffff00/mb text on/off|r - contador dentro del matraz")
+    print("  |cffffff00/mb rate on/off|r - mana por segundo (barra y modo texto)")
     print("  |cffffff00/mb always on/off|r - mostrar el matraz siempre")
     print("  |cffffff00/mb fallback on/off|r - detectar por bajadas de mana")
     print("  |cffffff00/mb channel on/off|r - reiniciar al cortar una canalizacion")
@@ -106,7 +107,7 @@ end
 -- lo que se detecta ni cuanto dura la regla.
 local STYLE_MODES = {
     flask = "el matraz animado, con liquido, olas y burbujas",
-    text = "solo la cifra y una etiqueta pequena debajo",
+    text = "solo la cifra, con la etiqueta y el mana por segundo debajo",
     bar = "una barra horizontal, con el mana por segundo debajo",
 }
 
@@ -130,8 +131,11 @@ handlers.style = function(value)
         MB:Print("en modo texto no hay halo ni burbujas, y el contador no se")
         MB:Print("puede apagar: es lo unico que se ve.")
     elseif value == "bar" then
-        MB:Print("en modo barra no hay halo ni burbujas. El mana por segundo")
-        MB:Print("aparece con el segundo tick, que es cuando hay algo medido.")
+        MB:Print("en modo barra no hay halo ni burbujas.")
+    end
+    if value ~= "flask" then
+        MB:Print("el mana por segundo aparece con el segundo tick, que es")
+        MB:Print("cuando hay algo medido; se quita con |cffffff00/mb rate off|r.")
     end
 end
 
@@ -178,6 +182,20 @@ end
 handlers.text = function(value)
     Toggle("showText", value, "textos")
     ns.display:ApplySettings()
+end
+
+-- El mana por segundo lo dibujan las dos pieles planas: en la barra a la
+-- derecha de la etiqueta, en modo texto de tercera linea debajo. En el matraz
+-- no hay sitio para una segunda cifra, asi que alli el mando se mide igual
+-- pero no se ve, y callarselo se lee como que no funciona.
+handlers.rate = function(value)
+    local enabled = Toggle("showRate", value, "mana por segundo")
+    ns.display:ApplySettings()
+    if ns.options then ns.options:Refresh() end
+    if enabled and MB:GetDB().style == "flask" then
+        MB:Print("el matraz no lo dibuja: no hay sitio para una segunda cifra.")
+        MB:Print("se ve en |cffffff00/mb style bar|r y en |cffffff00/mb style text|r.")
+    end
 end
 
 handlers.always = function(value)
@@ -231,6 +249,8 @@ handlers.status = function()
     MB:Print(("estilo: %s | fijado: %s | escala: %s | sonido: %s | brillo: %s")
         :format(tostring(db.style), tostring(db.locked), tostring(db.scale),
                 tostring(db.sound), tostring(db.glow)))
+    MB:Print(("contador: %s | mana por segundo: %s")
+        :format(tostring(db.showText), tostring(db.showRate)))
     MB:Print(("respaldo: %s | canal: %s | seguir regen: %s")
         :format(tostring(db.powerFallback), tostring(db.channelRestart),
                 tostring(db.holdRegen)))

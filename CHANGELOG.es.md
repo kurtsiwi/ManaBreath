@@ -35,6 +35,15 @@ Traduccion de [CHANGELOG.md](CHANGELOG.md), que es el que se publica.
 - Dos texturas generadas nuevas, `BarFill.tga` y `BarSpark.tga`, del mismo
   `tools/make_art.py` que el matraz. El carril vacio y el contorno son color
   liso puesto desde Lua: dos rectangulos no necesitan arte.
+- **El mana por segundo no es de la barra.** Lo mide el motor y lo imprimen las
+  dos pieles planas: la barra a la derecha de la etiqueta, el modo texto de
+  tercera linea debajo, y el matraz se queda sin el porque no hay sitio para
+  una segunda cifra sobre el cristal. `/mb rate off`, o la casilla del panel,
+  lo quita en las dos; se sigue midiendo igual, asi que volver a encenderlo a
+  mitad de la fase pinta lo ya medido en vez de esperar al tick siguiente. En
+  modo texto el sitio de la linea esta reservado haya cifra o no: llega con el
+  segundo tick, y si la linea naciera con ella el bloque entero daria un salto
+  a mitad de la fase.
 
 ### Arreglado
 

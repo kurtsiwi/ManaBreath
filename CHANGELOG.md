@@ -35,6 +35,15 @@
 - Two new generated textures, `BarFill.tga` and `BarSpark.tga`, from the same
   `tools/make_art.py` as the flask. The empty track and the outline are flat
   colours set from Lua: two rectangles do not need art.
+- **The mana per second is not the bar's.** It is measured by the engine and
+  printed by both flat skins: the bar puts it to the right of the label, text
+  mode on a third line under it, and the flask leaves it out because there is
+  no room for a second figure over the glass. `/mb rate off`, or the box in the
+  panel, takes it away in both; it goes on being measured, so turning it back
+  on mid-phase prints what is already measured instead of waiting for the next
+  tick. In text mode the line's space is reserved whether or not there is a
+  figure yet: it arrives with the second tick, and if the line were born with
+  it the whole block would jump mid-phase.
 
 ### Fixed
 

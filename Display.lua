@@ -84,12 +84,16 @@ local MIN_FONT = 6
 local COLOR_TRACK  = { 0.07, 0.07, 0.09 }
 local COLOR_BORDER = { 0.00, 0.00, 0.00 }
 
--- Mana por segundo. Se mide entre ticks y solo lo dibuja la barra, que es la
--- unica piel con sitio para una segunda cifra.
+-- Mana por segundo. Se mide entre ticks y lo dibujan las dos pieles planas:
+-- la barra, a la derecha de la etiqueta, y el modo texto, de tercera linea
+-- debajo de ella. El matraz no tiene sitio para una segunda cifra.
 local RATE_FORMAT = "%.1f/s"
 -- Antes de medio segundo no hay intervalo que promediar: lo que saldria es el
 -- trozo de tick que hubiera caido dentro, no una tasa.
 local RATE_MIN_SPAN = 0.5
+-- La cifra mas ancha que puede llegar a imprimir, para dimensionar el bloque
+-- de texto a ella y no a la que haya ahora.
+local WIDEST_RATE = { string.format(RATE_FORMAT, 1888.8) }
 
 -- Geometria del dibujo, en fracciones del marco. Estos mismos numeros estan
 -- en tools/make_art.py: si se mueve el matraz alla, hay que moverlos aqui.
@@ -357,26 +361,42 @@ function D:LayoutText()
 
     SetFontSize(self.timeText, self.valueSize, nil)
     SetFontSize(self.label, self.labelSize, nil)
+    SetFontSize(self.rateText, self.labelSize, nil)
     self.textSize = self.valueSize
 
-    for _, fs in ipairs({ self.timeText, self.label }) do
+    for _, fs in ipairs({ self.timeText, self.label, self.rateText }) do
         fs:SetShadowColor(0, 0, 0, 0.85)
         fs:SetShadowOffset(1, -1)
     end
     self.label:SetTextColor(COLOR_LABEL[1], COLOR_LABEL[2], COLOR_LABEL[3])
+    -- El mana por segundo solo existe mientras regeneras, asi que lleva el
+    -- verde de esa fase, como en la barra: es la cifra de lo que esta entrando.
+    self.rateText:SetTextColor(COLOR_DONE[1], COLOR_DONE[2], COLOR_DONE[3])
 
     local valueW = MeasureWidest(self.timeText, WIDEST_VALUE, self.valueSize * 3.2)
     local labelW = MeasureWidest(self.label, WIDEST_LABEL, self.labelSize * 7)
     local gap = h * TEXT_GAP
     local pad = h * TEXT_PAD
+    local blockW = max(valueW, labelW)
+    local blockH = self.valueSize + gap + self.labelSize
 
-    f:SetSize(max(valueW, labelW) + pad,
-        self.valueSize + gap + self.labelSize + pad)
+    -- El mana por segundo va de tercera linea, y su sitio se reserva haya
+    -- cifra o no: aparece con el segundo tick, y si la linea naciera con ella
+    -- el bloque entero daria un salto a mitad de la fase verde.
+    if self.rateShown then
+        blockW = max(blockW,
+            MeasureWidest(self.rateText, WIDEST_RATE, self.labelSize * 5))
+        blockH = blockH + gap + self.labelSize
+    end
+
+    f:SetSize(blockW + pad, blockH + pad)
 
     self.timeText:ClearAllPoints()
     self.timeText:SetPoint("TOP", f, "TOP", 0, -pad / 2)
     self.label:ClearAllPoints()
     self.label:SetPoint("TOP", self.timeText, "BOTTOM", 0, -gap)
+    self.rateText:ClearAllPoints()
+    self.rateText:SetPoint("TOP", self.label, "BOTTOM", 0, -gap)
 end
 
 -- La barra se dimensiona sola, como el bloque de texto, pero por otro motivo:
@@ -527,11 +547,15 @@ end
 -- Enciende las piezas de una piel y apaga las de las otras. Va antes de Layout
 -- porque todo lo demas se ramifica en estos tres booleanos.
 function D:ApplyStyle()
-    local style = MB:GetDB().style
+    local db = MB:GetDB()
+    local style = db.style
     local textMode = style == "text"
     local barMode = style == "bar"
     self.textMode = textMode
     self.barMode = barMode
+    -- La tasa la dibujan las dos pieles planas, si se quiere; el matraz nunca.
+    -- Se mide igual en las tres: lo que se apaga aqui es el dibujo.
+    self.rateShown = (textMode or barMode) and db.showRate ~= false
     -- El matraz es el valor por defecto y tambien el refugio: una piel que no
     -- conozcamos (una DB de una version mas nueva) dibuja el matraz, no nada.
     self.flaskMode = not (textMode or barMode)
@@ -543,7 +567,7 @@ function D:ApplyStyle()
     self.label:SetShown(textMode or barMode)
     self.barBorder:SetShown(barMode)
     self.barTrack:SetShown(barMode)
-    self.rateText:SetShown(barMode)
+    self.rateText:SetShown(self.rateShown)
     if not barMode then
         -- El relleno y el destello los enciende SetFill, que sabe si hay barra
         -- que dibujar; aqui solo se apagan al salir de la piel.
@@ -607,11 +631,12 @@ function D:SetLabel(text)
 end
 
 -- El mana por segundo, o nil cuando todavia no hay medida. Se guarda aunque la
--- piel de turno no lo dibuje: el motor es uno, y asi cambiar a la barra a
--- mitad de la regeneracion no empieza en blanco.
+-- piel de turno no lo dibuje, o aunque este apagado: el motor es uno, y asi
+-- encenderlo a mitad de la regeneracion pinta lo ya medido en vez de esperar
+-- al tick siguiente.
 function D:SetRate(rate)
     self.regenRate = rate
-    if not self.barMode then return end
+    if not self.rateShown then return end
     local text = rate and format(RATE_FORMAT, rate) or ""
     if text == self.shownRate then return end
     self.shownRate = text
@@ -841,9 +866,10 @@ function D:ManaTick()
     if self.state ~= "regen" then return end
     local now = GetTime()
     self.lastTickAt = now
-    -- Se mide en las tres pieles aunque solo la barra lo dibuje: es una
-    -- llamada al API por tick, uno cada dos segundos, y asi el motor sigue
-    -- siendo uno. Lo que se apaga en una piel es lo que cuesta por frame.
+    -- Se mide en las tres pieles aunque el matraz no lo dibuje, y tambien con
+    -- la cifra apagada: es una llamada al API por tick, uno cada dos
+    -- segundos, y asi el motor sigue siendo uno. Lo que se apaga en una piel
+    -- es lo que cuesta por frame.
     self:MeasureRate(now)
 
     local fraction = MB:GetManaFraction()

@@ -21,9 +21,9 @@ local STYLE_OPTIONS = {
     { value = "flask", label = "Matraz animado",
       tooltip = "El matraz de cristal: el liquido sube durante los 5 segundos, con olas y burbujas." },
     { value = "text", label = "Solo texto",
-      tooltip = "La cifra y una etiqueta pequena debajo, sin dibujo. No hay halo ni burbujas, y el contador no se puede apagar." },
+      tooltip = "La cifra, con una etiqueta pequena y el mana por segundo debajo, sin dibujo. No hay halo ni burbujas, y el contador no se puede apagar." },
     { value = "bar", label = "Barra",
-      tooltip = "Una barra horizontal que se llena durante los 5 segundos, con la cifra encima y el mana por segundo debajo. No hay halo ni burbujas." },
+      tooltip = "Una barra horizontal que se llena durante los 5 segundos, con la cifra encima, y debajo la etiqueta y el mana por segundo. No hay halo ni burbujas." },
 }
 
 local GLOW_OPTIONS = {
@@ -42,6 +42,7 @@ local APPLY = {
     style = function() ns.display:ApplySettings() end,
     scale = function() ns.display:ApplySettings() end,
     showText = function() ns.display:ApplySettings() end,
+    showRate = function() ns.display:ApplySettings() end,
     alwaysShow = function() ns.display:UpdateShown() end,
     glow = function() ns.display:RefreshGlow() end,
     holdRegen = function(value)
@@ -138,13 +139,18 @@ local function Build(self)
 
     self:AddHeader("Aspecto")
     self:AddChoice("style", "Como se dibuja", STYLE_OPTIONS,
-        "Las dos pieles cuentan lo mismo y detectan igual: solo cambia el dibujo.")
+        "Las tres pieles cuentan lo mismo y detectan igual: solo cambia el dibujo.")
     self:AddCheckbox("locked", "Fijar el matraz",
         "Desmarcado, el matraz se puede arrastrar con el boton izquierdo.")
     self:AddScale()
     self:AddCheckbox("showText", "Contador dentro del matraz",
         "Los segundos que faltan, y el porcentaje de mana durante la regeneracion. "
         .. "En modo texto no se aplica: ahi la cifra es lo unico que hay.")
+    self:AddCheckbox("showRate", "Mana por segundo",
+        "El mana que entra mientras regeneras, debajo de la cifra. Lo dibujan la "
+        .. "barra y el modo texto; el matraz no tiene sitio para una segunda cifra, "
+        .. "asi que ahi no se ve. Aparece con el segundo tick, que es cuando hay "
+        .. "algo medido.")
     self:AddCheckbox("alwaysShow", "Mostrar el matraz siempre",
         "Tambien en reposo. No cuesta nada por frame: el matraz en reposo no se anima.")
 

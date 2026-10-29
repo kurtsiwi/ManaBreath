@@ -25,6 +25,10 @@ MB.defaults = {
     locked = true,
     sound = false,
     showText = true,
+    -- El mana por segundo, debajo de la cifra. Lo dibujan las dos pieles
+    -- planas (la barra y el modo texto); el matraz no tiene sitio para una
+    -- segunda cifra, asi que alli se mide pero no se ve.
+    showRate = true,
     -- Cuando se enciende el halo: "regen" al acabar la regla (que es cuando
     -- el mana vuelve a subir), "rule" durante los 5 s, "off" nunca.
     glow = "regen",
