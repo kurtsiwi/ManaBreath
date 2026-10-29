@@ -14,6 +14,8 @@ Salida en Art/:
     FlaskWave.tga     banda de ola, repetible en horizontal
     FlaskBubble.tga   burbuja
     FlaskGlow.tga     halo del brillo de regeneracion
+    BarFill.tga       relleno de la barra, tambien tenido desde Lua
+    BarSpark.tga      destello del borde de avance de la barra
     Icon.tga          icono para la lista de addons
 
 Y dos PNG que no se empaquetan:
@@ -50,6 +52,11 @@ FILL_BOTTOM = 0.040
 FILL_TOP = 0.660
 
 GLOW_SCALE = 0.74  # cuanto se encoge la silueta dentro del lienzo del halo
+
+# Y las de la barra, que Display.lua tambien repite.
+BAR_SPARK_W = 0.55   # ancho del destello, en fracciones del alto de la barra
+BAR_SPARK_H = 1.55   # alto del destello: sobresale por arriba y por abajo
+C_TRACK = (0.07, 0.07, 0.09)   # carril vacio
 
 C_GLASS = (0.80, 0.87, 0.94)
 C_EDGE = (0.09, 0.11, 0.16)
@@ -368,6 +375,42 @@ def render_bubble(size):
     return c.downsample(SS)
 
 
+def render_bar_fill(w, h):
+    """Relleno de la barra: blanco, mas claro arriba y apagandose hacia abajo,
+    con un brillo corto en el tercio alto. El color lo pone Lua con
+    SetVertexColor, asi que aqui no hay color, solo volumen."""
+    c = Canvas(w, h, C_WHITE)
+    for y in range(h):
+        v = (y + 0.5) / h
+        value = 1.0 - 0.34 * v ** 1.4
+        value += 0.10 * math.exp(-(((v - 0.26) / 0.16) ** 2))
+        # Linea oscura en el borde de abajo: es lo que separa el relleno del
+        # carril cuando los dos quedan del mismo tono.
+        value *= 1.0 - 0.30 * smoothstep(0.86, 1.0, v)
+        value = clamp(value)
+        for x in range(w):
+            c.px[y * w + x] = [value, value, min(1.0, value * 1.03), 1.0]
+    return c
+
+
+def render_bar_spark(size):
+    """Destello del borde de avance: una linea blanca con halo, para dibujarse
+    en ADD. Desde Lua se estira al alto de la barra."""
+    c = Canvas(size, size, C_WHITE)
+    for py in range(size):
+        v = (py + 0.5) / size
+        # Se deshace en las puntas: el destello sobresale por arriba y por
+        # abajo de la barra, y un corte recto ahi se ve como un palo pegado.
+        ends = smoothstep(0.0, 0.22, v) * smoothstep(0.0, 0.22, 1.0 - v)
+        for px in range(size):
+            u = abs((px + 0.5) / size - 0.5) * 2.0
+            halo = math.exp(-((u / 0.55) ** 2))
+            core = math.exp(-((u / 0.13) ** 2))
+            c.px[py * size + px] = [1.0, 1.0, 1.0,
+                                    clamp(0.45 * halo + 0.85 * core) * ends]
+    return c
+
+
 # --- montaje, para el icono y la vista previa -------------------------------
 
 WAVE_H = 0.16      # alto de la banda de ola, en fracciones del alto del marco
@@ -567,7 +610,38 @@ def render_logo(size, flask):
     return c
 
 
-def preview(glass, mask, liquid, wave, bubble, glow):
+def draw_bar(out, ox, oy, bw, bh, frac, tint, bar_fill, bar_spark):
+    """La barra como la monta el juego: contorno, carril, relleno tenido y el
+    destello en ADD sobre el borde de avance."""
+    width = out.w
+    for y in range(-1, bh + 1):
+        for x in range(-1, bw + 1):
+            i = (oy + y) * width + ox + x
+            if y < 0 or y >= bh or x < 0 or x >= bw:
+                out.over(i, (0.0, 0.0, 0.0), 0.85)
+            else:
+                out.over(i, C_TRACK, 0.75)
+
+    filled = int(frac * bw + 0.5)
+    for y in range(bh):
+        p = sample(bar_fill, 0.5, (y + 0.5) / bh)
+        color = (p[0] * tint[0], p[1] * tint[1], p[2] * tint[2])
+        for x in range(filled):
+            out.over((oy + y) * width + ox + x, color, p[3])
+
+    sw = max(2, int(bh * BAR_SPARK_W))
+    sh = int(bh * BAR_SPARK_H)
+    sx, sy = ox + filled - sw // 2, oy + (bh - sh) // 2
+    lit = tuple(clamp(c * 1.3) for c in tint)
+    for y in range(sh):
+        for x in range(sw):
+            px_, py_ = sx + x, sy + y
+            if 0 <= px_ < width and 0 <= py_ < out.h:
+                g = sample(bar_spark, (x + 0.5) / sw, (y + 0.5) / sh)
+                out.add(py_ * width + px_, lit, g[3])
+
+
+def preview(glass, mask, liquid, wave, bubble, glow, bar_fill, bar_spark):
     """Hoja de contactos sobre fondo oscuro, a 2x, para mirarla aqui mismo."""
     size = glass.w
     scale = 2
@@ -576,7 +650,8 @@ def preview(glass, mask, liquid, wave, bubble, glow):
     step = cell + pad
     cols = 4
     width = step * cols + pad
-    height = cell + pad * 2
+    bar_h = int(cell * 0.17)
+    height = cell + bar_h + pad * 3
     out = Canvas(width, height)
     for i in range(width * height):
         out.px[i] = [0.07, 0.07, 0.09, 1.0]
@@ -609,6 +684,14 @@ def preview(glass, mask, liquid, wave, bubble, glow):
             for x in range(cell):
                 p = shot.px[(y // scale) * size + (x // scale)]
                 out.over((oy + y) * width + ox + x, (p[0], p[1], p[2]), p[3])
+
+    # La otra piel, con las mismas fases: la barra azul llenandose y la verde
+    # marcando el mana. Cada una ocupa dos celdas, que es la proporcion que
+    # tiene la barra en pantalla.
+    bar_w = step * 2 - pad
+    for col, (fill, tint) in enumerate(((0.42, states[1][1]), (0.78, states[3][1]))):
+        draw_bar(out, pad + col * (bar_w + pad), cell + pad * 2,
+                 bar_w, bar_h, fill, tint, bar_fill, bar_spark)
     return out
 
 
@@ -623,6 +706,8 @@ def main():
     liquid = render_liquid(32, 64)
     wave = render_wave(64, 32)
     bubble = render_bubble(32)
+    bar_fill = render_bar_fill(16, 32)
+    bar_spark = render_bar_spark(32)
 
     write_tga(os.path.join(ART, "FlaskGlass.tga"), glass)
     write_tga(os.path.join(ART, "FlaskMask.tga"), mask)
@@ -630,6 +715,8 @@ def main():
     write_tga(os.path.join(ART, "FlaskLiquid.tga"), liquid)
     write_tga(os.path.join(ART, "FlaskWave.tga"), wave)
     write_tga(os.path.join(ART, "FlaskBubble.tga"), bubble)
+    write_tga(os.path.join(ART, "BarFill.tga"), bar_fill)
+    write_tga(os.path.join(ART, "BarSpark.tga"), bar_spark)
     write_tga(os.path.join(ART, "Icon.tga"),
               compose_flask(128, 0.70, (0.26, 0.52, 0.98), glass, mask, liquid,
                             wave, None, 0.3))
@@ -647,7 +734,8 @@ def main():
 
     print("Vista previa:")
     write_png(os.path.join(HERE, "preview.png"),
-              preview(glass, mask, liquid, wave, bubble, glow))
+              preview(glass, mask, liquid, wave, bubble, glow,
+                      bar_fill, bar_spark))
 
     # Las mismas piezas en PNG, para montar la vista previa animada en el
     # navegador. No se empaquetan: WoW solo lee los TGA.
@@ -655,7 +743,8 @@ def main():
     if not os.path.isdir(web):
         os.makedirs(web)
     for name, piece in (("glass", glass), ("mask", mask), ("wave", wave),
-                        ("bubble", bubble), ("glow", glow)):
+                        ("bubble", bubble), ("glow", glow),
+                        ("barfill", bar_fill), ("barspark", bar_spark)):
         write_png(os.path.join(web, name + ".png"), piece)
 
 

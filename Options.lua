@@ -22,6 +22,8 @@ local STYLE_OPTIONS = {
       tooltip = "El matraz de cristal: el liquido sube durante los 5 segundos, con olas y burbujas." },
     { value = "text", label = "Solo texto",
       tooltip = "La cifra y una etiqueta pequena debajo, sin dibujo. No hay halo ni burbujas, y el contador no se puede apagar." },
+    { value = "bar", label = "Barra",
+      tooltip = "Una barra horizontal que se llena durante los 5 segundos, con la cifra encima y el mana por segundo debajo. No hay halo ni burbujas." },
 }
 
 local GLOW_OPTIONS = {

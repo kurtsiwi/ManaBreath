@@ -2,6 +2,49 @@
 
 Traduccion de [CHANGELOG.md](CHANGELOG.md), que es el que se publica.
 
+## 1.3.0
+
+- **Modo barra.** `/mb style bar` cambia el matraz por una barra horizontal que
+  se llena durante los 5 segundos, con un destello montado en el borde de
+  avance, la cifra centrada encima y, debajo, la etiqueta a la izquierda y el
+  **mana por segundo** a la derecha. Es la piel minimalista: ni silueta ni
+  cristal, solo la linea y las cifras.
+- Es una piel como las otras dos, sobre el **mismo motor**: los mismos estados,
+  los mismos tiempos, la misma deteccion y la misma gota al cumplirse la regla.
+  Lo unico que cambia es el dibujo.
+- El **mana por segundo** es nuevo, y es del motor, no de la barra: se mide en
+  las tres pieles y la barra es solo la unica con sitio para imprimirlo. Se
+  mide desde el **primer tick** de la fase verde y no desde que empieza la
+  fase: entre el fin de la regla y ese primer tick cabe cualquier fraccion del
+  intervalo, y dividir por ella imprimiria una cifra disparatada justo en el
+  momento que mas se mira. El precio es que la primera cifra llega con el
+  segundo tick. El promedio es acumulado, asi que se afina solo, y se borra al
+  empezar una regla nueva: mientras la regla corre no entra mana, asi que dejar
+  ahi la ultima cifra seria mentir.
+- Sin halo y sin burbujas, por lo mismo que el modo texto: el halo es la
+  silueta del matraz y las burbujas suben por dentro del cristal. Pero aqui
+  `/mb text off` **si** funciona, al reves que en modo texto: la barra sigue
+  contando sin la cifra, mientras que el bloque de texto se quedaria vacio.
+- El ancho es el tuyo, por `/mb size`, pero nunca menos de algo mas de tres
+  veces el alto: por debajo deja de leerse como barra y pasa a leerse como un
+  cuadrado, y el marco por defecto de 58x58 se dibujo para un matraz.
+- **~2 llamadas al API por frame**, entre las ~5 del matraz y la ~1 del modo
+  texto. El destello va colgado del borde derecho del relleno, igual que las
+  bandas de ola cuelgan de la superficie del liquido, asi que lo unico que se
+  mueve por frame es el ancho del relleno: al destello lo arrastra gratis.
+- Dos texturas generadas nuevas, `BarFill.tga` y `BarSpark.tga`, del mismo
+  `tools/make_art.py` que el matraz. El carril vacio y el contorno son color
+  liso puesto desde Lua: dos rectangulos no necesitan arte.
+
+### Arreglado
+
+- Cambiar de piel a mitad de un ciclo dejaba piezas de la nueva sin pintar. El
+  color de la fase lo lleva un widget distinto en cada piel (el liquido, la
+  cifra, la barra) y la etiqueta solo se escribe cuando cambia, asi que volver
+  al matraz desde el modo texto a mitad de la regeneracion podia dejar un
+  contador verde sobre un matraz azul, o una etiqueta en blanco. Ahora cambiar
+  de piel repinta la fase en la que esta.
+
 ## 1.2.0
 
 - **Una gota de agua al cumplirse la regla**, que es el instante en que el mana

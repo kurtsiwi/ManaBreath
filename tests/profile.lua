@@ -53,7 +53,9 @@ local function instrument(obj)
 end
 
 instrument(D.frame)
-for _, key in ipairs({ "liquid", "wave1", "wave2", "glow", "glass", "timeText", "label" }) do
+for _, key in ipairs({ "liquid", "wave1", "wave2", "glow", "glass", "timeText",
+                       "label", "barBorder", "barTrack", "barFill", "barSpark",
+                       "rateText" }) do
     instrument(D[key])
 end
 for i = 1, #D.bubbles do instrument(D.bubbles[i]) end
@@ -124,6 +126,24 @@ phase("texto (regla corriendo)", 60, function()
 end)
 
 phase("texto (fase verde, con un tick)", 120, function()
+    castAndSettle(2000, 6.5)
+    assert(D.state == "regen", D.state)
+    MOCK.mana = MOCK.mana + 150
+    MOCK:fire("UNIT_POWER_UPDATE", "player", "MANA")
+end)
+
+-- Y la tercera. Tampoco tiene nada que animar a 30 Hz, y ademas el destello
+-- va colgado del borde derecho del relleno, asi que lo unico que se mueve por
+-- frame es un SetWidth. Si estas dos lineas se acercan a las del matraz, es
+-- que algo esta recolocando el destello en vez de dejar que lo arrastre.
+ManaBreathDB.style = "bar"
+D:ApplySettings()
+
+phase("barra (regla corriendo)", 60, function()
+    castAndSettle(5000)
+end)
+
+phase("barra (fase verde, con un tick)", 120, function()
     castAndSettle(2000, 6.5)
     assert(D.state == "regen", D.state)
     MOCK.mana = MOCK.mana + 150

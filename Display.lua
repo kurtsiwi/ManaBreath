@@ -60,6 +60,37 @@ local COLOR_LABEL = { 0.55, 0.55, 0.62 }
 local WIDEST_VALUE = { DONE_TEXT, "100%", "0.0", IDLE_TEXT }
 local WIDEST_LABEL = { LABEL_RULE, LABEL_REGEN }
 
+-- Modo barra: una barra horizontal que se llena durante los 5 s, con un
+-- destello en el borde de avance, la cifra centrada encima, y debajo la
+-- etiqueta a la izquierda y el mana por segundo a la derecha. Todo en
+-- fracciones del alto del marco, como el matraz.
+local BAR_PAD     = 0.07   -- margen alrededor de la barra
+local BAR_H       = 0.56   -- alto de la barra
+local BAR_GAP     = 0.10   -- aire entre la barra y la linea de abajo
+local BAR_LABEL_H = 0.18   -- alto de la etiqueta y del mana por segundo
+local BAR_VALUE_H = 0.30   -- alto de la cifra, que va centrada sobre la barra
+local BAR_BORDER  = 1      -- grosor del contorno, en pixeles
+-- Estos dos estan tambien en tools/make_art.py, que dibuja la vista previa.
+local BAR_SPARK_W = 0.55   -- ancho del destello, en fracciones del alto de la barra
+local BAR_SPARK_H = 1.55   -- alto del destello: sobresale por arriba y por abajo
+-- Una barra tan alta como ancha no se lee como barra. El ancho sale del mayor
+-- entre el configurado y este multiplo del alto, asi que el tamano por defecto
+-- (58x58, pensado para el matraz) da una barra y no un cuadrado.
+local BAR_MIN_ASPECT = 3.2
+-- Cuerpo de letra minimo: el alto del marco lo elige quien lo usa y puede
+-- bajar hasta 6 px, donde la etiqueta saldria a 1 px, o sea a nada.
+local MIN_FONT = 6
+
+local COLOR_TRACK  = { 0.07, 0.07, 0.09 }
+local COLOR_BORDER = { 0.00, 0.00, 0.00 }
+
+-- Mana por segundo. Se mide entre ticks y solo lo dibuja la barra, que es la
+-- unica piel con sitio para una segunda cifra.
+local RATE_FORMAT = "%.1f/s"
+-- Antes de medio segundo no hay intervalo que promediar: lo que saldria es el
+-- trozo de tick que hubiera caido dentro, no una tasa.
+local RATE_MIN_SPAN = 0.5
+
 -- Geometria del dibujo, en fracciones del marco. Estos mismos numeros estan
 -- en tools/make_art.py: si se mueve el matraz alla, hay que moverlos aqui.
 local FILL_BOTTOM = 0.040   -- fondo interior del bulbo
@@ -202,6 +233,31 @@ function D:Init()
     glass:SetTexture(ART .. "FlaskGlass")
     glass:SetAllPoints(f)
 
+    -- Modo barra. El contorno y el carril son color liso: una barra vacia no
+    -- necesita arte, y un TGA para dos rectangulos seria peso por nada.
+    local barBorder = f:CreateTexture(nil, "BACKGROUND", nil, -2)
+    barBorder:SetColorTexture(COLOR_BORDER[1], COLOR_BORDER[2], COLOR_BORDER[3], 0.85)
+    barBorder:Hide()
+
+    local barTrack = f:CreateTexture(nil, "BACKGROUND", nil, -1)
+    barTrack:SetColorTexture(COLOR_TRACK[1], COLOR_TRACK[2], COLOR_TRACK[3], 0.75)
+    barTrack:Hide()
+
+    local barFill = f:CreateTexture(nil, "ARTWORK", nil, 0)
+    barFill:SetTexture(ART .. "BarFill")
+    barFill:Hide()
+
+    local barSpark = f:CreateTexture(nil, "ARTWORK", nil, 2)
+    barSpark:SetTexture(ART .. "BarSpark")
+    barSpark:SetBlendMode("ADD")
+    barSpark:Hide()
+
+    -- El mana por segundo. Solo se dibuja en modo barra, pero se crea siempre
+    -- por lo mismo que la etiqueta: cambiar de piel no deberia construir nada.
+    local rateText = f:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    rateText:SetDrawLayer("OVERLAY", 7)
+    rateText:Hide()
+
     if mask then
         liquid:AddMaskTexture(mask)
         wave1:AddMaskTexture(mask)
@@ -252,13 +308,19 @@ function D:Init()
     self.wave2 = wave2
     self.bubbles = bubbles
     self.glass = glass
+    self.barBorder = barBorder
+    self.barTrack = barTrack
+    self.barFill = barFill
+    self.barSpark = barSpark
     self.timeText = timeText
     self.label = label
+    self.rateText = rateText
     self.hint = hint
     self.waveOffset1 = 0
     self.waveOffset2 = 0
     self.animElapsed = 0
     self.bubblesShown = false
+    self.barShown = false
     -- Ultima opacidad escrita en cada burbuja, para no repetir la llamada.
     self.bubbleAlpha = {}
 
@@ -275,6 +337,8 @@ end
 function D:Layout()
     if self.textMode then
         self:LayoutText()
+    elseif self.barMode then
+        self:LayoutBar()
     else
         self:LayoutFlask()
     end
@@ -313,6 +377,73 @@ function D:LayoutText()
     self.timeText:SetPoint("TOP", f, "TOP", 0, -pad / 2)
     self.label:ClearAllPoints()
     self.label:SetPoint("TOP", self.timeText, "BOTTOM", 0, -gap)
+end
+
+-- La barra se dimensiona sola, como el bloque de texto, pero por otro motivo:
+-- alla manda la cadena mas larga, aqui que una barra necesita ser mas ancha
+-- que alta para leerse como tal.
+function D:LayoutBar()
+    local f = self.frame
+    local db = MB:GetDB()
+    local h = db.height
+    local w = max(db.width, floor(h * BAR_MIN_ASPECT + 0.5))
+    f:SetSize(w, h)
+
+    local pad = floor(h * BAR_PAD + 0.5)
+    local barH = max(4, floor(h * BAR_H + 0.5))
+    local inner = max(1, w - pad * 2 - BAR_BORDER * 2)
+    local gap = floor(h * BAR_GAP + 0.5)
+
+    self.barWidth = inner
+
+    self.barBorder:ClearAllPoints()
+    self.barBorder:SetPoint("TOPLEFT", f, "TOPLEFT", pad, -pad)
+    self.barBorder:SetSize(inner + BAR_BORDER * 2, barH + BAR_BORDER * 2)
+
+    self.barTrack:ClearAllPoints()
+    self.barTrack:SetPoint("TOPLEFT", self.barBorder, "TOPLEFT", BAR_BORDER, -BAR_BORDER)
+    self.barTrack:SetSize(inner, barH)
+
+    self.barFill:ClearAllPoints()
+    self.barFill:SetPoint("TOPLEFT", self.barTrack, "TOPLEFT", 0, 0)
+    self.barFill:SetHeight(barH)
+
+    -- El destello cuelga del borde derecho del relleno, igual que las olas
+    -- cuelgan de la superficie del liquido: asi avanza solo cuando la barra
+    -- crece y el OnUpdate no tiene que recolocarlo.
+    self.barSpark:ClearAllPoints()
+    self.barSpark:SetPoint("CENTER", self.barFill, "RIGHT", 0, 0)
+    self.barSpark:SetSize(max(2, floor(barH * BAR_SPARK_W + 0.5)),
+        floor(barH * BAR_SPARK_H + 0.5))
+
+    self.valueSize = max(MIN_FONT, floor(h * BAR_VALUE_H + 0.5))
+    self.labelSize = max(MIN_FONT, floor(h * BAR_LABEL_H + 0.5))
+    self.textSize = nil
+
+    -- La cifra va sobre el relleno, asi que pide OUTLINE y no sombra, como en
+    -- el matraz. La linea de abajo va sobre el fondo del juego, como el modo
+    -- texto, asi que pide lo contrario.
+    self.timeText:SetShadowOffset(0, 0)
+    -- El color de la fase lo lleva la barra; si la cifra lo llevara tambien,
+    -- diria dos veces lo mismo y se perderia sobre su propio relleno.
+    self.timeText:SetTextColor(1, 1, 1)
+    self.timeText:ClearAllPoints()
+    self.timeText:SetPoint("CENTER", self.barTrack, "CENTER", 0, 0)
+
+    for _, fs in ipairs({ self.label, self.rateText }) do
+        SetFontSize(fs, self.labelSize, nil)
+        fs:SetShadowColor(0, 0, 0, 0.85)
+        fs:SetShadowOffset(1, -1)
+    end
+    self.label:SetTextColor(COLOR_LABEL[1], COLOR_LABEL[2], COLOR_LABEL[3])
+    -- El mana por segundo solo existe mientras regeneras, asi que lleva el
+    -- verde de esa fase: es la cifra de lo que esta entrando.
+    self.rateText:SetTextColor(COLOR_DONE[1], COLOR_DONE[2], COLOR_DONE[3])
+
+    self.label:ClearAllPoints()
+    self.label:SetPoint("TOPLEFT", self.barBorder, "BOTTOMLEFT", 0, -gap)
+    self.rateText:ClearAllPoints()
+    self.rateText:SetPoint("TOPRIGHT", self.barBorder, "BOTTOMRIGHT", 0, -gap)
 end
 
 function D:LayoutFlask()
@@ -355,9 +486,11 @@ function D:LayoutFlask()
     self.wordSize = floor(h * 0.17 + 0.5)
     self.textSize = nil
 
-    -- Sobre el cristal manda el OUTLINE, que lo pone SetText. La sombra es
-    -- del modo texto: si se viene de ahi, hay que soltarla.
+    -- Sobre el cristal manda el OUTLINE, que lo pone SetText. La sombra y el
+    -- color de fase son del modo texto: si se viene de ahi, hay que soltarlos,
+    -- que si no el contador se queda verde sobre un matraz azul.
     self.timeText:SetShadowOffset(0, 0)
+    self.timeText:SetTextColor(1, 1, 1)
 end
 
 function D:ApplySettings()
@@ -383,46 +516,82 @@ function D:ApplySettings()
     self:UpdateShown()
 end
 
--- Enciende las piezas de una piel y apaga las de la otra. Va antes de Layout
--- porque todo lo demas se ramifica en self.textMode.
+-- El color de la fase en la que esta el motor. Cambiar de piel a mitad de un
+-- ciclo tiene que repintarla, y cada piel lo lleva en una pieza distinta.
+function D:PhaseColor()
+    if self.state == "active" then return COLOR_ACTIVE end
+    if self.state == "idle" or self.state == nil then return COLOR_IDLE end
+    return COLOR_DONE
+end
+
+-- Enciende las piezas de una piel y apaga las de las otras. Va antes de Layout
+-- porque todo lo demas se ramifica en estos tres booleanos.
 function D:ApplyStyle()
-    local textMode = MB:GetDB().style == "text"
+    local style = MB:GetDB().style
+    local textMode = style == "text"
+    local barMode = style == "bar"
     self.textMode = textMode
+    self.barMode = barMode
+    -- El matraz es el valor por defecto y tambien el refugio: una piel que no
+    -- conozcamos (una DB de una version mas nueva) dibuja el matraz, no nada.
+    self.flaskMode = not (textMode or barMode)
 
-    self.glass:SetShown(not textMode)
-    self.liquid:SetShown(not textMode)
-    self.wave1:SetShown(not textMode)
-    self.wave2:SetShown(not textMode)
-    self.label:SetShown(textMode)
+    self.glass:SetShown(self.flaskMode)
+    self.liquid:SetShown(self.flaskMode)
+    self.wave1:SetShown(self.flaskMode)
+    self.wave2:SetShown(self.flaskMode)
+    self.label:SetShown(textMode or barMode)
+    self.barBorder:SetShown(barMode)
+    self.barTrack:SetShown(barMode)
+    self.rateText:SetShown(barMode)
+    if not barMode then
+        -- El relleno y el destello los enciende SetFill, que sabe si hay barra
+        -- que dibujar; aqui solo se apagan al salir de la piel.
+        self.barShown = false
+        self.barFill:Hide()
+        self.barSpark:Hide()
+    end
 
-    if textMode then
+    if self.flaskMode then
+        -- Volver al matraz a mitad de un ciclo tiene que devolverlo entero:
+        -- estos dos se apagaron al salir y nadie los volveria a encender hasta
+        -- el siguiente casteo.
+        if self.state ~= "idle" and self.state ~= nil then
+            self:ShowBubbles(true)
+            self:RefreshGlow()
+        end
+    else
         -- El halo es la silueta del matraz y las burbujas suben por dentro del
         -- cristal: sin matraz no rodean ni suben por nada. Apagarlos aqui es
-        -- ademas lo que deja al modo texto sin animacion por frame.
+        -- ademas lo que deja a las otras dos pieles sin animacion por frame.
         self:SetGlow(false)
         self:ShowBubbles(false)
-    elseif self.state ~= "idle" and self.state ~= nil then
-        -- Al reves, volver al matraz a mitad de un ciclo tiene que devolverlo
-        -- entero: estos dos se apagaron al entrar en modo texto y nadie los
-        -- volveria a encender hasta el siguiente casteo.
-        self:ShowBubbles(true)
-        self:RefreshGlow()
     end
+
+    -- La etiqueta, el mana por segundo y el color de fase solo se escriben
+    -- cuando cambian, y lo que cambia aqui es la pieza que los lleva: sin
+    -- repintarlos, la piel nueva sale en blanco hasta la fase siguiente.
+    self.shownLabel = nil
+    self.shownRate = nil
+    self:SetLabel(self.state == "regen" and LABEL_REGEN or LABEL_RULE)
+    self:SetRate(self.regenRate)
+    self:SetPhaseColor(self:PhaseColor())
 end
 
 function D:SetText(text, big)
-    if self.textMode then
-        -- Un solo cuerpo de letra para la cifra y para la palabra: si midieran
-        -- distinto, la linea daria un salto al pasar de "0.1" a "regen".
-        if self.textSize ~= self.valueSize then
-            self.textSize = self.valueSize
-            SetFontSize(self.timeText, self.valueSize, nil)
-        end
-    else
+    if self.flaskMode then
         local size = big and self.digitSize or self.wordSize
         if size ~= self.textSize then
             self.textSize = size
             SetFontSize(self.timeText, size, "OUTLINE")
+        end
+    else
+        -- Un solo cuerpo de letra para la cifra y para la palabra: si midieran
+        -- distinto, la linea daria un salto al pasar de "0.1" a "regen". El
+        -- borde solo en la barra, que es donde la cifra va sobre el relleno.
+        if self.textSize ~= self.valueSize then
+            self.textSize = self.valueSize
+            SetFontSize(self.timeText, self.valueSize, self.barMode and "OUTLINE" or nil)
         end
     end
     self.timeText:SetText(text)
@@ -432,9 +601,21 @@ end
 -- menos que la llamada al API y mantiene la regla de la casa: nada se vuelve
 -- a escribir si no ha cambiado.
 function D:SetLabel(text)
-    if not self.textMode or text == self.shownLabel then return end
+    if self.flaskMode or text == self.shownLabel then return end
     self.shownLabel = text
     self.label:SetText(text)
+end
+
+-- El mana por segundo, o nil cuando todavia no hay medida. Se guarda aunque la
+-- piel de turno no lo dibuje: el motor es uno, y asi cambiar a la barra a
+-- mitad de la regeneracion no empieza en blanco.
+function D:SetRate(rate)
+    self.regenRate = rate
+    if not self.barMode then return end
+    local text = rate and format(RATE_FORMAT, rate) or ""
+    if text == self.shownRate then return end
+    self.shownRate = text
+    self.rateText:SetText(text)
 end
 
 -- frac va de 0 a 1. force redibuja aunque no haya cambiado, que es lo que
@@ -442,11 +623,36 @@ end
 function D:SetFill(frac, force)
     if frac == self.fill and not force then return end
     self.fill = frac
-    -- Se sigue llevando la cuenta en modo texto aunque no haya liquido que
-    -- mover: es el mismo motor, y asi volver al matraz no empieza en blanco.
-    if not self.textMode then
+    -- Se sigue llevando la cuenta en modo texto aunque no haya nada que mover:
+    -- es el mismo motor, y asi volver al matraz no empieza en blanco.
+    if self.flaskMode then
         self.liquid:SetHeight(self.bottomPx + frac * self.spanPx)
+    elseif self.barMode then
+        self:DrawBar(frac)
     end
+end
+
+-- Lo unico que se mueve por frame en modo barra: el ancho del relleno. El
+-- destello va colgado de su borde derecho, asi que avanza solo.
+function D:DrawBar(frac)
+    local width = floor(frac * self.barWidth + 0.5)
+    if width < 1 then
+        -- Cero no es un ancho valido, y a un pixel no hay barra que leer: se
+        -- apagan las dos piezas en vez de encogerlas.
+        if self.barShown then
+            self.barShown = false
+            self.barFill:Hide()
+            self.barSpark:Hide()
+        end
+        return
+    end
+
+    if not self.barShown then
+        self.barShown = true
+        self.barFill:Show()
+        self.barSpark:Show()
+    end
+    self.barFill:SetWidth(width)
 end
 
 -- El color de la fase. En el matraz lo lleva el liquido; en modo texto, la
@@ -455,6 +661,12 @@ end
 function D:SetPhaseColor(color)
     if self.textMode then
         self.timeText:SetTextColor(color[1], color[2], color[3])
+    elseif self.barMode then
+        self.barFill:SetVertexColor(color[1], color[2], color[3])
+        -- El destello, un punto por encima del relleno: es un borde de avance,
+        -- no una parte mas de la barra.
+        self.barSpark:SetVertexColor(min(1, color[1] * 1.3), min(1, color[2] * 1.3),
+            min(1, color[3] * 1.3))
     else
         self:SetLiquidColor(color)
     end
@@ -467,7 +679,7 @@ function D:SetLiquidColor(color)
 end
 
 function D:SetGlow(enabled, color)
-    if self.textMode then enabled = false end
+    if not self.flaskMode then enabled = false end
     self.glowing = enabled
     if enabled then
         self.glow:SetVertexColor(min(1, color[1] * 1.3), min(1, color[2] * 1.3),
@@ -490,7 +702,7 @@ function D:RefreshGlow()
 end
 
 function D:ShowBubbles(enabled)
-    if self.textMode then enabled = false end
+    if not self.flaskMode then enabled = false end
     if enabled == self.bubbling then return end
     self.bubbling = enabled
     if not enabled then
@@ -543,6 +755,9 @@ function D:Start(startedAt, expires)
     self.holdLeft = nil
     self.shownTenths = nil
     self.flashLeft = nil
+    -- El mana por segundo es de la fase de regeneracion: mientras la regla
+    -- corre no entra mana, asi que dejar la ultima cifra ahi seria mentir.
+    self:ClearRate()
     self.frame:SetAlpha(1)
     self:SetFill(0)
     self:SetPhaseColor(COLOR_ACTIVE)
@@ -589,14 +804,47 @@ function D:BeginRegen(now)
     self.manaPercent = floor(fraction * 100)
     self.shownPercent = nil
     self.lastTickAt = now
+    self:ClearRate()
     return true
+end
+
+function D:ClearRate()
+    self.rateMana = nil
+    self.rateAt = nil
+    self:SetRate(nil)
+end
+
+-- Mana por segundo, medido desde el PRIMER tick de la fase y no desde que
+-- empieza: entre el fin de la regla y el primer tick cabe cualquier fraccion
+-- del intervalo, y dividir por ella daria una cifra disparatada justo en el
+-- momento que mas se mira. A cambio, la primera cifra aparece con el segundo
+-- tick. El promedio es acumulado, asi que se va afinando solo.
+function D:MeasureRate(now)
+    local mana = MB:GetMana()
+    if mana == nil then return end
+
+    if self.rateMana == nil or mana < self.rateMana then
+        -- Primer tick, o el mana ha bajado: no hay de donde medir todavia.
+        self.rateMana, self.rateAt = mana, now
+        return
+    end
+
+    local span = now - self.rateAt
+    if span >= RATE_MIN_SPAN then
+        self:SetRate((mana - self.rateMana) / span)
+    end
 end
 
 -- Un tick de regeneracion. Core.lua lo llama cada vez que el mana sube, pero
 -- solo significa algo durante la fase de regen.
 function D:ManaTick()
     if self.state ~= "regen" then return end
-    self.lastTickAt = GetTime()
+    local now = GetTime()
+    self.lastTickAt = now
+    -- Se mide en las tres pieles aunque solo la barra lo dibuje: es una
+    -- llamada al API por tick, uno cada dos segundos, y asi el motor sigue
+    -- siendo uno. Lo que se apaga en una piel es lo que cuesta por frame.
+    self:MeasureRate(now)
 
     local fraction = MB:GetManaFraction()
     if fraction == nil then return end
@@ -634,6 +882,7 @@ function D:Reset()
     self.manaPercent = nil
     self.shownPercent = nil
     self.lastTickAt = nil
+    self:ClearRate()
     self.frame:SetAlpha(1)
     self:SetFill(0)
     self:SetText(self.textMode and IDLE_TEXT or "", false)

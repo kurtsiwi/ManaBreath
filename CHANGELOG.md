@@ -1,5 +1,49 @@
 # Changelog
 
+## 1.3.0
+
+### A third look
+
+- **Bar mode.** `/mb style bar` swaps the flask for a horizontal bar that fills
+  over the 5 seconds, with a spark riding its leading edge, the figure centred
+  on it, and underneath the label on the left and the **mana per second** on
+  the right. It is the minimalist one: no silhouette, no glass, just the line
+  and the figures.
+- It is a skin like the other two, on the **same engine**: the same states, the
+  same timings, the same detection, and the same water drop when the rule is
+  fulfilled. Only the drawing differs.
+- **Mana per second** is new, and it is the engine's, not the bar's: it is
+  measured in all three skins and the bar is simply the only one with room to
+  print it. It is measured from the **first tick** of the green phase, not from
+  the start of the phase: between the end of the rule and the first tick there
+  can be any fraction of an interval, and dividing by it would print a wild
+  figure at the very moment you are looking. The price is that the first figure
+  arrives with the second tick. The average is cumulative, so it sharpens by
+  itself, and it is cleared when a new rule starts — while the rule runs no
+  mana is coming in, so leaving the last figure there would be a lie.
+- No glow and no bubbles, for the reason text mode has none: the glow is the
+  flask's silhouette and the bubbles rise inside the glass. But `/mb text off`
+  **does** work here, unlike in text mode — the bar goes on counting without
+  the figure, whereas the text block would be left empty.
+- The width is yours through `/mb size`, but never less than about three times
+  the height: below that it stops reading as a bar and starts reading as a
+  square, and the default 58x58 frame was drawn for a flask.
+- **~2 API calls per frame**, between the flask's ~5 and text mode's ~1. The
+  spark hangs off the right edge of the fill, the way the wave strips hang off
+  the surface of the liquid, so the only thing that moves per frame is the
+  width of the fill — the spark is dragged along for free.
+- Two new generated textures, `BarFill.tga` and `BarSpark.tga`, from the same
+  `tools/make_art.py` as the flask. The empty track and the outline are flat
+  colours set from Lua: two rectangles do not need art.
+
+### Fixed
+
+- Switching skin mid-cycle left pieces of the new one unpainted. The phase
+  colour is carried by a different widget in each skin (the liquid, the figure,
+  the bar) and the label is only written when it changes, so coming back to the
+  flask from text mode mid-regeneration could leave a green counter over a blue
+  flask, or an empty label. Changing skin now repaints the phase it is in.
+
 ## 1.2.0
 
 ### A second look

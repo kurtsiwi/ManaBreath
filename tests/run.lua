@@ -286,7 +286,7 @@ check("de 0.5 a 3", MOCK.settings.MANABREATH_SCALE.sliderOptions.max, 3)
 check("el brillo es un desplegable", MOCK.settings.MANABREATH_GLOW.control, "dropdown")
 check("con los tres modos", #MOCK.settings.MANABREATH_GLOW.choices, 3)
 check("el estilo es un desplegable", MOCK.settings.MANABREATH_STYLE.control, "dropdown")
-check("con las dos pieles", #MOCK.settings.MANABREATH_STYLE.choices, 2)
+check("con las tres pieles", #MOCK.settings.MANABREATH_STYLE.choices, 3)
 
 -- Marcar una casilla tiene que escribir en la DB y aplicarse al momento.
 MOCK.settings.MANABREATH_ALWAYSSHOW:SetValue(true)
@@ -686,6 +686,108 @@ MOCK:advance(2)
 check("y se llena", D.fill > 0.39 and D.fill < 0.41, true)
 check("con burbujas otra vez", D.bubbles[1]:IsShown(), true)
 MB:Cancel()
+MOCK.mana = 2000
+
+print("\n-- modo barra: la tercera piel, sobre el mismo motor --")
+-- Lo mismo que se le pide al modo texto: que no se lleve por delante nada del
+-- motor. Y una cosa mas, que es suya: el mana por segundo.
+MB:Cancel()
+slash("style bar")
+check("la piel cambia", D.barMode, true)
+check("sin cristal", D.glass:IsShown(), false)
+check("sin liquido", D.liquid:IsShown(), false)
+check("con carril", D.barTrack:IsShown(), true)
+check("con etiqueta", D.label:IsShown(), true)
+check("con mana por segundo", D.rateText:IsShown(), true)
+
+-- Una barra tan alta como ancha no se lee como barra: cuando el ancho
+-- configurado se queda corto, lo pone el alto.
+check("mas ancha que alta", D.frame:GetWidth() >= D.frame:GetHeight() * 3, true)
+check("y no es el cuadrado del matraz",
+    D.frame:GetWidth() ~= ManaBreathDB.width, true)
+
+MOCK:fire("UNIT_SPELLCAST_SUCCEEDED", "player", "bar-1", 100)
+check("la regla arranca igual", MB:IsActive(), true)
+check("restante = 5s", MB:Remaining(), 5.0)
+check("etiqueta de la regla", D.label:GetText(), "5 S R")
+check("el relleno toma el color de la fase",
+    D.barFill.color[3] > D.barFill.color[2], true)
+-- El color lo lleva la barra, asi que la cifra va en blanco: si lo llevara
+-- tambien, diria dos veces lo mismo y se perderia sobre su propio relleno.
+check("y la cifra se queda en blanco", D.timeText.color[1], 1)
+
+MOCK:advance(2)
+check("el contador corre", D.timeText:GetText(), "3.0")
+check("la barra va por el 40 %",
+    math.abs(D.barFill:GetWidth() / D.barWidth - 0.4) < 0.02, true)
+check("con destello en el borde", D.barSpark:IsShown(), true)
+
+-- Igual que en modo texto: sin matraz no hay a quien rodear ni por donde
+-- subir, y apagarlos es lo que deja la piel sin nada que animar por frame.
+slash("glow rule")
+check("sin halo aunque se pida", D.glow:IsShown(), false)
+check("sin burbujas", D.bubbles[1]:IsShown(), false)
+check("nada que animar", D.bubbling or D.glowing, false)
+slash("glow regen")
+
+MOCK:advance(3.2)
+check("la regla termina igual", D.state, "done")
+check("palabra al terminar", D.timeText:GetText(), "regen")
+check("y la barra llena", D.barFill:GetWidth(), D.barWidth)
+
+-- Fase de regeneracion, que es la unica en la que hay un mana por segundo que
+-- medir: mientras la regla corre no entra nada.
+MOCK.mana = 1000
+MOCK:fire("UNIT_POWER_UPDATE", "player", "MANA")
+MOCK:advance(1)
+check("entra en regen", D.state, "regen")
+check("etiqueta del mana", D.label:GetText(), "M A N A")
+check("sin tasa todavia", D.rateText:GetText(), "")
+
+-- El primer tick solo fija el origen: entre el fin de la regla y ese tick
+-- cabe cualquier fraccion del intervalo, y dividir por ella daria una cifra
+-- disparatada justo en el momento que mas se mira.
+MOCK.mana = MOCK.mana + 100
+MOCK:fire("UNIT_POWER_UPDATE", "player", "MANA")
+MOCK:advance(2)
+check("el primer tick solo fija el origen", D.rateText:GetText(), "")
+MOCK.mana = MOCK.mana + 100
+MOCK:fire("UNIT_POWER_UPDATE", "player", "MANA")
+check("el segundo ya mide", D.rateText:GetText(), "50.0/s")
+-- El destello lo pinta el OnUpdate, no el evento: hace falta un frame, igual
+-- que en las otras dos pieles.
+MOCK:advance(1 / 60)
+check("y el destello de cada tick sigue vivo",
+    D.barFill.color[1] > 0.4, true)
+
+-- La tasa es de la fase verde. Una regla nueva no la hereda: mientras corre
+-- no entra mana, asi que dejar ahi la ultima cifra seria mentir.
+MOCK:fire("UNIT_SPELLCAST_SUCCEEDED", "player", "bar-2", 100)
+check("una regla nueva borra la tasa", D.rateText:GetText(), "")
+
+-- Aqui si se puede apagar la cifra, al reves que en modo texto: la barra
+-- sigue contando sin ella, el bloque de texto no.
+slash("text off")
+check("la cifra se puede apagar", D.timeText:IsShown(), false)
+check("y la barra se queda", D.barTrack:IsShown(), true)
+slash("text on")
+
+-- Cambiar de piel a mitad de un ciclo, que es cuando se nota si algo se quedo
+-- sin pintar: la etiqueta y el color los lleva una pieza distinta en cada una.
+MOCK:advance(1)
+slash("style flask")
+check("vuelve el cristal", D.glass:IsShown(), true)
+check("y la barra se va", D.barFill:IsShown(), false)
+check("sin perder la cuenta", MB:Remaining() > 3.9 and MB:Remaining() < 4.1, true)
+check("el liquido vuelve a llevar el color",
+    D.liquid.color[3] > D.liquid.color[2], true)
+slash("style bar")
+check("y la barra vuelve entera", D.barFill:IsShown(), true)
+check("con la etiqueta puesta", D.label:GetText(), "5 S R")
+check("y el color de la fase", D.barFill.color[3] > D.barFill.color[2], true)
+
+MB:Cancel()
+slash("style flask")
 MOCK.mana = 2000
 
 print("\n-- los .toc no se desincronizan --")

@@ -56,7 +56,7 @@ the flask goes out as soon as the rule ends.
 With `/mb sound on` a single water drop plays the moment the rule ends,
 which is the moment mana starts coming back. It is the addon's own file
 (`Sound/ManaDrop.ogg`, 8.5 KB), not a borrowed interface cue, and it plays in
-both looks. If the file is missing because the addon was unpacked incompletely,
+all three looks. If the file is missing because the addon was unpacked incompletely,
 `/mb debug on` says so instead of leaving a switch that quietly does nothing.
 
 The glow lights exactly one phase, whichever you pick — lighting both would say
@@ -64,7 +64,7 @@ nothing. By default (`/mb glow regen`) it lights the green one, the only phase
 where you are actually getting mana back; `/mb glow rule` moves it to the
 5 seconds of the rule, and `/mb glow off` turns it off.
 
-### Two looks
+### Three looks
 
 The flask is one skin, not the addon. `/mb style text` swaps it for a sober
 text-only readout: the figure, and a small spaced label underneath.
@@ -74,17 +74,29 @@ text-only readout: the figure, and a small spaced label underneath.
      5 S R               M A N A
 ```
 
-| | Flask | Text |
-| --- | --- | --- |
-| The rule is running | Liquid rising, waves, bubbles | `4.3` in blue, over `5 S R` |
-| The rule is over | Full flask, `regen` | `regen` in green, over `5 S R` |
-| Regenerating | Liquid tracks your mana | `62%` in green, over `M A N A` |
-| A tick landed | The liquid flashes | The figure flashes |
-| Glow | Optional, around the flask | None — there is no silhouette to light |
+`/mb style bar` swaps it for a horizontal bar that fills over the 5 seconds,
+with a spark riding its leading edge, the figure centred on it, and underneath
+the label on the left and the mana per second on the right.
 
-Both skins run the **same engine**: the same states, the same timings, the same
-detection. Only the drawing differs, so a fix to the rule lands in both and
-there is no second truth to keep in step.
+```
+  ████████████▌ 2.4 ·················
+  5 S R
+
+  ██████████████████████ 62% ········
+  M A N A                      15.8/s
+```
+
+| | Flask | Text | Bar |
+| --- | --- | --- | --- |
+| The rule is running | Liquid rising, waves, bubbles | `4.3` in blue, over `5 S R` | Blue bar filling, `4.3` on it |
+| The rule is over | Full flask, `regen` | `regen` in green, over `5 S R` | Full green bar, `regen` |
+| Regenerating | Liquid tracks your mana | `62%` in green, over `M A N A` | Green bar tracks your mana, with the mana per second |
+| A tick landed | The liquid flashes | The figure flashes | The bar flashes |
+| Glow | Optional, around the flask | None — there is no silhouette to light | None — same reason |
+
+All three skins run the **same engine**: the same states, the same timings, the
+same detection. Only the drawing differs, so a fix to the rule lands in all
+three and there is no second truth to keep in step.
 
 Three things change in text mode, and the command says so when you switch:
 there is no glow, there are no bubbles, and `/mb text off` has no effect —
@@ -93,8 +105,22 @@ frame. The frame sizes itself to the widest string it can ever show, measured
 once, so the block does not jump mid-countdown; `/mb size` still sets the
 height, which is what drives the font, while the width comes from the text.
 
-Text mode is also the cheaper one: with no waves, bubbles or glow there is
-nothing to animate, which drops it from ~5 API calls per frame to ~1.
+The bar has no glow or bubbles either, for the same reason, but it does keep
+`/mb text off`: the bar goes on counting without the figure. Its width is
+yours, through `/mb size`, but never less than about three times the height —
+below that it stops reading as a bar and starts reading as a square. The
+**mana per second** shows up with the second regeneration tick, not the first:
+between the end of the rule and the first tick there can be any fraction of an
+interval, and dividing by it would print a wild figure at the very moment you
+are looking. It is measured from the first tick onwards, as a running average,
+and it is cleared when a new rule starts — while the rule runs no mana is
+coming in, so leaving the last figure there would be a lie.
+
+Text mode is the cheapest one: with no waves, bubbles or glow there is nothing
+to animate, which drops it from ~5 API calls per frame to ~1. The bar sits in
+between at ~2: the spark hangs off the right edge of the fill, the way the
+waves hang off the surface of the liquid, so the only thing that moves per
+frame is the width of the fill.
 
 ### Configuration
 
@@ -118,7 +144,7 @@ flask even mid-rule.
 | `/mb config` | Open the options panel |
 | `/mb lock` / `/mb unlock` | Pin or release the flask |
 | `/mb test` | 5-second demo |
-| `/mb style flask/text` | Animated flask, or text only |
+| `/mb style flask/text/bar` | Animated flask, text only, or a bar |
 | `/mb scale <0.5 - 3>` | Flask scale — the right way to resize it |
 | `/mb size <width> <height>` | Frame size; the art assumes a square frame |
 | `/mb sound on/off` | A water drop when the rule ends |
@@ -235,15 +261,15 @@ which shifts with the size of the heap. The bench measured that way up to
 
 | | |
 | --- | --- |
-| Static footprint (loaded and initialized) | ~106 KB, plus ~12 KB once the panel registers |
+| Static footprint (loaded and initialized) | ~131 KB, plus ~12 KB once the panel registers |
 | Idle, flask hidden | **0 bytes/frame, no `OnUpdate` installed** |
 | Flask visible but idle (`/mb always on`) | **0 bytes/frame, no `OnUpdate` installed** |
 | 600 frames of the blue phase | **0 bytes** |
-| 600 frames of the green phase | **0 bytes/frame** · ~24 bytes per percentage change |
+| 600 frames of the green phase | **0 bytes/frame** · ~24 bytes per percentage change, plus one string per tick for the mana per second in bar mode |
 | `UNIT_POWER_UPDATE` | **0 bytes** |
 | Per cast | ~320 bytes, all of it the table `C_Spell.GetSpellPowerCost` returns |
 | One full 5 s cycle | ~370 bytes, the cast included |
-| API calls per frame while animating | ~5 (flask) · ~1 (text) |
+| API calls per frame while animating | ~5 (flask) · ~2 (bar) · ~1 (text) |
 | Drift after 200 cycles + 400 casts + 2000 `UNIT_POWER_UPDATE` | **-0.04 KB (no leak)** |
 
 Four decisions account for those numbers:
@@ -269,18 +295,20 @@ Four decisions account for those numbers:
   and the percentage only when the integer does. The per-tick flash colour is
   computed into a table that gets reused.
 
-Of those ~118 KB, about 6 KB is `Verify.lua`, which is only used once to check
+Of those ~143 KB, about 6 KB is `Verify.lua`, which is only used once to check
 the rule in game, and about 29 KB is the options panel: ~17 KB of `Options.lua`
 and ~12 KB of the objects the settings system creates when the eleven settings
 are declared. Both are conscious calls of the same kind: resident memory in
 return for an addon you can measure and configure without reading the README.
 If those 29 KB ever got in the way, dropping `Options.lua` from the `.toc`
-returns the addon to ~89 KB and nothing else changes — the commands do not
+returns the addon to ~114 KB and nothing else changes — the commands do not
 depend on the panel.
 
-The text skin costs about 12 KB of that total, and it costs it whether or not
-you use it: both skins are built at load so switching between them draws
-immediately instead of constructing widgets mid-rule.
+The two skins that are not the flask cost about 35 KB of that total — ~12 KB
+the text one, ~23 KB the bar — and they cost it whether or not you use them:
+all three are built at load, so switching between them draws immediately
+instead of constructing widgets mid-rule. Almost none of that is the widgets
+themselves (the bar's five pieces are ~3 KB); it is the code that draws them.
 
 The one unavoidable allocation is `C_Spell.GetSpellPowerCost`, which returns a
 fresh table on every call. That is ~320 bytes per cast and is **deliberately
@@ -296,10 +324,15 @@ The flask is generated, not drawn by hand:
 python tools/make_art.py
 ```
 
-That script writes the seven TGAs in `Art/` from signed distance fields — glass,
-interior mask, liquid, wave band, bubble, glow and the addon-list icon — plus
+That script writes the nine TGAs in `Art/` from signed distance fields — glass,
+interior mask, liquid, wave band, bubble, glow and the addon-list icon for the
+flask, plus the fill and the leading-edge spark for the bar — along with
 `tools/preview.png` to look at them outside the game. It needs no third-party
 library. `tools/` is not packaged.
+
+The bar's empty track and its outline are flat colours set from Lua, not
+textures: two rectangles do not need art, and a TGA for them would be weight
+for nothing.
 
 The liquid, the waves and the bubbles are all clipped by a `MaskTexture` shaped
 like the inside of the glass, so nothing spills outside the flask no matter how
@@ -307,8 +340,8 @@ the frame is resized. If a client does not expose `CreateMaskTexture`, the addon
 degrades instead of breaking: the liquid is narrowed to fit inside the bulb.
 
 The geometry constants live in two places — `tools/make_art.py` and the
-`FILL_*` / `GLOW_SCALE` constants in `Display.lua`. Moving the drawing means
-moving both.
+`FILL_*` / `GLOW_SCALE` / `BAR_SPARK_*` constants in `Display.lua`. Moving the
+drawing means moving both.
 
 The same script also writes `logo.png` in the repository root: the 400x400
 avatar for the CurseForge page, framed like a vanilla spell icon — dark outer

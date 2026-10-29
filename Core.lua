@@ -29,8 +29,9 @@ MB.defaults = {
     -- el mana vuelve a subir), "rule" durante los 5 s, "off" nunca.
     glow = "regen",
     -- Como se dibuja: "flask" es el matraz animado, "text" es solo la cifra y
-    -- una etiqueta pequena debajo. El motor (estados, tiempos, deteccion) es
-    -- el mismo en los dos: esto solo elige la piel.
+    -- una etiqueta pequena debajo, "bar" es una barra horizontal con el mana
+    -- por segundo. El motor (estados, tiempos, deteccion) es el mismo en las
+    -- tres: esto solo elige la piel.
     style = "flask",
     -- Mantener el matraz encendido durante la regeneracion, ensenando el mana
     -- que entra con cada tick, hasta que se llene, salgas de combate o vuelvas

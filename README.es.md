@@ -56,7 +56,7 @@ para siempre. Con `/mb regen off` el matraz se apaga en cuanto acaba la regla.
 Con `/mb sound on` suena una gota justo al cumplirse la regla, que es el
 instante en que el maná vuelve a subir. Es un archivo propio del addon
 (`Sound/ManaDrop.ogg`, 8,5 KB) y no un sonido prestado de la interfaz, y suena
-en las dos pieles. Si el archivo faltara por haber descomprimido el addon a
+en las tres pieles. Si el archivo faltara por haber descomprimido el addon a
 medias, `/mb debug on` lo dice, en vez de dejar un mando que no hace nada.
 
 El brillo alumbra una sola fase, la que elijas: encenderlo en las dos lo dejaría
@@ -64,7 +64,7 @@ sin decir nada. Por defecto (`/mb glow regen`) alumbra la verde, que es la únic
 en la que de verdad estás recuperando maná; `/mb glow rule` lo pasa a los
 5 segundos de la regla y `/mb glow off` lo apaga.
 
-### Las dos pieles
+### Las tres pieles
 
 El matraz es una piel, no el addon. `/mb style text` lo cambia por una lectura
 sobria, solo de letras: la cifra, y debajo una etiqueta pequeña espaciada.
@@ -74,17 +74,30 @@ sobria, solo de letras: la cifra, y debajo una etiqueta pequeña espaciada.
      5 S R               M A N A
 ```
 
-| | Matraz | Texto |
-| --- | --- | --- |
-| La regla corriendo | Líquido subiendo, olas, burbujas | `4.3` en azul, sobre `5 S R` |
-| La regla cumplida | Matraz lleno, `regen` | `regen` en verde, sobre `5 S R` |
-| Regenerando | El líquido sigue tu maná | `62%` en verde, sobre `M A N A` |
-| Entra un tick | Destella el líquido | Destella la cifra |
-| Halo | Opcional, alrededor del matraz | No hay: no hay silueta que rodear |
+`/mb style bar` lo cambia por una barra horizontal que se llena durante los
+5 segundos, con un destello montado en el borde de avance, la cifra centrada
+encima y, debajo, la etiqueta a la izquierda y el maná por segundo a la
+derecha.
 
-Las dos pieles corren el **mismo motor**: los mismos estados, los mismos
+```
+  ████████████▌ 2.4 ·················
+  5 S R
+
+  ██████████████████████ 62% ········
+  M A N A                      15.8/s
+```
+
+| | Matraz | Texto | Barra |
+| --- | --- | --- | --- |
+| La regla corriendo | Líquido subiendo, olas, burbujas | `4.3` en azul, sobre `5 S R` | Barra azul llenándose, con `4.3` encima |
+| La regla cumplida | Matraz lleno, `regen` | `regen` en verde, sobre `5 S R` | Barra verde llena, `regen` |
+| Regenerando | El líquido sigue tu maná | `62%` en verde, sobre `M A N A` | La barra verde sigue tu maná, con el maná por segundo |
+| Entra un tick | Destella el líquido | Destella la cifra | Destella la barra |
+| Halo | Opcional, alrededor del matraz | No hay: no hay silueta que rodear | No hay, por lo mismo |
+
+Las tres pieles corren el **mismo motor**: los mismos estados, los mismos
 tiempos, la misma detección. Lo único que cambia es el dibujo, así que un
-arreglo en la regla vale para las dos y no hay una segunda verdad que mantener
+arreglo en la regla vale para las tres y no hay una segunda verdad que mantener
 al día.
 
 En modo texto cambian tres cosas, y el comando lo dice al cambiar: no hay halo,
@@ -94,8 +107,22 @@ cadena más larga que puede llegar a mostrar, medida una sola vez, para que el
 bloque no baile a mitad de la cuenta atrás; `/mb size` sigue poniendo el alto,
 que es lo que manda sobre el cuerpo de letra, y el ancho lo pone el texto.
 
-El modo texto es además el barato: sin olas, burbujas ni halo no queda nada que
-animar, y eso lo baja de ~5 llamadas al API por frame a ~1.
+La barra tampoco tiene halo ni burbujas, por lo mismo, pero sí conserva
+`/mb text off`: la barra sigue contando sin la cifra. El ancho es el tuyo, por
+`/mb size`, pero nunca menos de algo más de tres veces el alto: por debajo de
+eso deja de leerse como barra y pasa a leerse como un cuadrado. El **maná por
+segundo** aparece con el segundo tick de regeneración, no con el primero: entre
+el fin de la regla y el primer tick cabe cualquier fracción del intervalo, y
+dividir por ella imprimiría una cifra disparatada justo en el momento que más
+se mira. Se mide desde ese primer tick, como promedio acumulado, y se borra al
+empezar una regla nueva: mientras la regla corre no entra maná, así que dejar
+ahí la última cifra sería mentir.
+
+El modo texto es el barato: sin olas, burbujas ni halo no queda nada que
+animar, y eso lo baja de ~5 llamadas al API por frame a ~1. La barra se queda
+en medio, en ~2: el destello va colgado del borde derecho del relleno, igual
+que las olas cuelgan de la superficie del líquido, así que lo único que se
+mueve por frame es el ancho del relleno.
 
 ### Configuración
 
@@ -120,7 +147,7 @@ nota en el matraz aunque la regla esté corriendo.
 | `/mb config` | Abre el panel de opciones |
 | `/mb lock` / `/mb unlock` | Fija o libera el matraz |
 | `/mb test` | Demo de 5 segundos |
-| `/mb style flask/text` | Matraz animado, o solo letras |
+| `/mb style flask/text/bar` | Matraz animado, solo letras, o una barra |
 | `/mb scale <0.5 - 3>` | Escala del matraz: la forma correcta de agrandarlo |
 | `/mb size <ancho> <alto>` | Tamaño del marco; el dibujo supone un marco cuadrado |
 | `/mb sound on/off` | Una gota de agua al terminar la regla |
@@ -238,15 +265,15 @@ por casteo cuando la cifra real es 320.
 
 | | |
 | --- | --- |
-| Huella estática (cargado e inicializado) | ~106 KB, más ~12 KB al registrar el panel |
+| Huella estática (cargado e inicializado) | ~131 KB, más ~12 KB al registrar el panel |
 | En reposo, matraz oculto | **0 bytes/frame, sin `OnUpdate` instalado** |
 | Matraz visible pero en reposo (`/mb always on`) | **0 bytes/frame, sin `OnUpdate` instalado** |
 | 600 frames de fase azul | **0 bytes** |
-| 600 frames de fase verde | **0 bytes/frame** · ~24 bytes por cambio de porcentaje |
+| 600 frames de fase verde | **0 bytes/frame** · ~24 bytes por cambio de porcentaje, más una cadena por tick para el maná por segundo en modo barra |
 | `UNIT_POWER_UPDATE` | **0 bytes** |
 | Por casteo | ~320 bytes, todo la tabla que devuelve `C_Spell.GetSpellPowerCost` |
 | Ciclo completo de 5 s | ~370 bytes, el casteo incluido |
-| Llamadas al API por frame animando | ~5 (matraz) · ~1 (texto) |
+| Llamadas al API por frame animando | ~5 (matraz) · ~2 (barra) · ~1 (texto) |
 | Deriva tras 200 ciclos + 400 casteos + 2000 `UNIT_POWER_UPDATE` | **−0,04 KB (sin fuga)** |
 
 Cuatro decisiones explican esos números:
@@ -272,18 +299,20 @@ Cuatro decisiones explican esos números:
   cambia la décima, y el porcentaje solo cuando cambia el entero. El color del
   destello de cada tick se calcula sobre una tabla que se reutiliza.
 
-De esos ~118 KB, unos 6 KB son `Verify.lua`, que solo se usa una vez para
+De esos ~143 KB, unos 6 KB son `Verify.lua`, que solo se usa una vez para
 comprobar la regla en el juego, y unos 29 KB son el panel de opciones: ~17 KB
 de `Options.lua` y ~12 KB de los objetos que el sistema de ajustes crea al
 declarar las once opciones. Las dos son decisiones conscientes y del mismo
 tipo: memoria residente a cambio de que el addon se pueda medir y configurar
 sin leerse el README. Si alguna vez esos 29 KB molestaran, quitar `Options.lua`
-del `.toc` devuelve el addon a ~89 KB sin tocar nada más: los comandos no
+del `.toc` devuelve el addon a ~114 KB sin tocar nada más: los comandos no
 dependen del panel.
 
-La piel de texto cuesta unos 12 KB de ese total, y los cuesta se use o no: las
-dos pieles se construyen al cargar, así que cambiar de una a otra dibuja al
-momento en vez de montar widgets a mitad de una regla.
+Las dos pieles que no son el matraz cuestan unos 35 KB de ese total —~12 KB la
+de texto, ~23 KB la barra— y los cuestan se usen o no: las tres se construyen
+al cargar, así que cambiar de una a otra dibuja al momento en vez de montar
+widgets a mitad de una regla. Casi nada de eso son las piezas en sí (las cinco
+de la barra son ~3 KB): es el código que las dibuja.
 
 Lo único que asigna de forma inevitable es `C_Spell.GetSpellPowerCost`, que
 devuelve una tabla nueva en cada llamada. Son ~320 bytes por casteo y
@@ -359,10 +388,15 @@ El matraz está generado, no dibujado a mano:
 python tools/make_art.py
 ```
 
-Ese script escribe los siete TGA de `Art/` a partir de campos de distancia
+Ese script escribe los nueve TGA de `Art/` a partir de campos de distancia
 —cristal, máscara del interior, líquido, banda de ola, burbuja, halo y el icono
-de la lista de addons— y además `tools/preview.png` para mirarlos fuera del
+de la lista de addons para el matraz, más el relleno y el destello del borde de
+avance para la barra— y además `tools/preview.png` para mirarlos fuera del
 juego. No necesita ninguna biblioteca externa. `tools/` no se empaqueta.
+
+El carril vacío de la barra y su contorno son color liso puesto desde Lua, no
+texturas: dos rectángulos no necesitan arte, y un TGA para ellos sería peso por
+nada.
 
 El líquido, las olas y las burbujas van recortados por una `MaskTexture` con la
 forma del interior del cristal, así que nada se sale del matraz por mucho que
@@ -379,8 +413,8 @@ empaqueta**: dentro del zip sería peso muerto en la carpeta de addons de cada
 jugador.
 
 Las constantes de geometría viven en dos sitios: `tools/make_art.py` y las
-constantes `FILL_*` / `GLOW_SCALE` de `Display.lua`. Mover el dibujo es mover
-los dos.
+constantes `FILL_*` / `GLOW_SCALE` / `BAR_SPARK_*` de `Display.lua`. Mover el
+dibujo es mover los dos.
 
 ## Desarrollo
 

@@ -9,7 +9,7 @@
 ## Notes-esES: Un matraz animado que indica cuándo está activa la regla de 5 segundos de regeneración de maná.
 ## Notes-esMX: Un matraz animado que indica cuándo está activa la regla de 5 segundos de regeneración de maná.
 ## Author: kurtsiwi
-## Version: 1.2.0
+## Version: 1.3.0
 ## Category: Combat
 ## SavedVariables: ManaBreathDB
 ## AllowAddOnTableAccess: 0

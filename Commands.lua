@@ -24,7 +24,7 @@ local function Help()
     print("  |cffffff00/mb config|r - abre el panel de opciones")
     print("  |cffffff00/mb lock|r / |cffffff00unlock|r - fija o libera el matraz")
     print("  |cffffff00/mb test|r - demo de 5 segundos")
-    print("  |cffffff00/mb style flask/text|r - matraz animado o solo letras")
+    print("  |cffffff00/mb style flask/text/bar|r - matraz, solo letras o barra")
     print("  |cffffff00/mb scale <n>|r - escala (0.5 - 3)")
     print("  |cffffff00/mb size <ancho> <alto>|r - tamano del matraz")
     print("  |cffffff00/mb glow regen/rule/off|r - cuando brilla el matraz")
@@ -96,20 +96,26 @@ handlers.size = function(width, height)
     MB:Print(("tamano: %dx%d"):format(width, height))
     if db.style == "text" then
         MB:Print("en modo texto el ancho lo pone la cadena mas larga; manda el alto.")
+    elseif db.style == "bar" then
+        MB:Print("en modo barra el ancho es el tuyo, pero nunca menos de algo mas")
+        MB:Print("de tres veces el alto: por debajo deja de leerse como barra.")
     end
 end
 
--- Las dos pieles. Por debajo es el mismo addon: cambia lo que se dibuja, no
+-- Las tres pieles. Por debajo es el mismo addon: cambia lo que se dibuja, no
 -- lo que se detecta ni cuanto dura la regla.
 local STYLE_MODES = {
     flask = "el matraz animado, con liquido, olas y burbujas",
     text = "solo la cifra y una etiqueta pequena debajo",
+    bar = "una barra horizontal, con el mana por segundo debajo",
 }
+
+local STYLE_ORDER = { "flask", "text", "bar" }
 
 handlers.style = function(value)
     if not value or not STYLE_MODES[value] then
-        MB:Print("uso: /mb style flask | text")
-        for _, mode in ipairs({ "flask", "text" }) do
+        MB:Print("uso: /mb style flask | text | bar")
+        for _, mode in ipairs(STYLE_ORDER) do
             print(("  |cffffff00%s|r - %s"):format(mode, STYLE_MODES[mode]))
         end
         return
@@ -123,6 +129,9 @@ handlers.style = function(value)
         -- el mando no funciona.
         MB:Print("en modo texto no hay halo ni burbujas, y el contador no se")
         MB:Print("puede apagar: es lo unico que se ve.")
+    elseif value == "bar" then
+        MB:Print("en modo barra no hay halo ni burbujas. El mana por segundo")
+        MB:Print("aparece con el segundo tick, que es cuando hay algo medido.")
     end
 end
 
