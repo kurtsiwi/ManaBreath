@@ -313,6 +313,14 @@ function Frame:GetStringWidth()
     return #(self.text or "") * (self.fontSize or 10) * 0.6
 end
 function Frame:CreateTexture() return newFrame("Texture") end
+-- Nivel de marco y capa de dibujo. El juego ordena por nivel primero y por
+-- capa despues, asi que un hijo con nivel propio tapa al padre entero: lo que
+-- el addon tiene que igualar para que el cristal y la palabra sigan arriba.
+function Frame:SetFrameLevel(v) self.frameLevel = v end
+-- rawget por lo de siempre: el __index devuelve un no-op, no nil, asi que un
+-- self.frameLevel pelado daria una funcion en vez del nivel por defecto.
+function Frame:GetFrameLevel() return rawget(self, "frameLevel") or 1 end
+function Frame:SetDrawLayer(layer, sub) self.drawLayer, self.drawSub = layer, sub end
 -- StatusBar: la unica via por la que un valor secreto se puede dibujar. El
 -- mock guarda el valor sin tocarlo, que es justo lo que hace el juego.
 function Frame:SetMinMaxValues(a, b) self.minValue, self.maxValue = a, b end
@@ -329,7 +337,13 @@ function Frame:CreateFontString() return newFrame("FontString") end
 function Frame:EnableMouse(v) self.mouse = v end
 
 function CreateFrame(kind, name, parent, template)
-    return newFrame(kind, name)
+    local f = newFrame(kind, name)
+    -- Un marco hijo nace un nivel por encima del padre, que es de donde sale
+    -- el problema que el addon tiene que corregir a mano.
+    if type(parent) == "table" and parent.GetFrameLevel then
+        f.frameLevel = parent:GetFrameLevel() + 1
+    end
+    return f
 end
 
 UIParent = newFrame("Frame", "UIParent")

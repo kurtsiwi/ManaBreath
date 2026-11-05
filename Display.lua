@@ -679,6 +679,21 @@ end
 -- como cualquier otro.
 -- ---------------------------------------------------------------------
 
+-- Un StatusBar es un marco, y todo lo que cuelga de un marco hijo se dibuja
+-- por encima de todo lo que cuelga del padre, sea cual sea su capa. Sin
+-- igualar el nivel, el nivel de mana taparia el cristal, las olas, las
+-- burbujas y la palabra: justo lo que la textura a la que sustituye deja ver.
+-- Igualados vuelve a mandar la capa, y ahi la textura ocupa el sitio exacto
+-- del liquido al que releva.
+local function SinkBar(bar, tex, parent)
+    if bar.SetFrameLevel and parent.GetFrameLevel then
+        bar:SetFrameLevel(parent:GetFrameLevel())
+    end
+    if tex.SetDrawLayer then
+        tex:SetDrawLayer("ARTWORK", 0)
+    end
+end
+
 -- Se construye la primera vez que hace falta, no al entrar: en un cliente que
 -- entregue el mana normal esto no existe nunca.
 function D:EnsureSecretFill()
@@ -697,6 +712,7 @@ function D:EnsureSecretFill()
     bar:Hide()
     local tex = bar.GetStatusBarTexture and bar:GetStatusBarTexture()
     if not tex then return false end
+    SinkBar(bar, tex, f)
     if self.mask and tex.AddMaskTexture then
         tex:AddMaskTexture(self.mask)
     end
@@ -709,6 +725,7 @@ function D:EnsureSecretFill()
     bbar:Hide()
     self.barBar = bbar
     self.barBarTex = bbar.GetStatusBarTexture and bbar:GetStatusBarTexture()
+    if self.barBarTex then SinkBar(bbar, self.barBarTex, f) end
 
     self.secretReady = true
     self:LayoutSecretFill()

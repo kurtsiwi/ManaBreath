@@ -19,6 +19,11 @@ Traduccion de [CHANGELOG.md](CHANGELOG.md), que es el que se publica.
 - Las olas cuelgan de la textura del propio StatusBar, igual que colgaban del
   liquido, asi que montan la superficie sin una sola cuenta por frame. El
   destello de la barra hace lo mismo en su borde derecho.
+- El StatusBar baja al nivel del propio marco. Un marco hijo dibuja por encima
+  de todo lo que cuelga del padre, sea cual sea su capa, asi que con su nivel
+  de nacimiento el nivel de mana tapaba el cristal, las olas, las burbujas y la
+  palabra: justo lo que la textura a la que releva deja ver. Igualado, vuelve a
+  mandar la capa y cae donde caia el liquido.
 - **Sigue sin haber cifra**, y no la va a haber: imprimir un numero exige
   formatear un valor secreto. Lo que el bulbo conserva es la palabra `regen`,
   que es una constante y no cuesta ninguna lectura: sale al acabar la regla y

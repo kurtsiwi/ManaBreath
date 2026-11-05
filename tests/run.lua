@@ -978,6 +978,11 @@ check("y recibio el valor protegido", issecretvalue(D.liquidBar.value), true)
 check("el liquido de siempre se aparta", D.liquid:IsShown(), false)
 check("y el StatusBar ocupa su lugar", D.liquidBar:IsShown(), true)
 check("sin cifra, pero con la palabra", D.timeText:GetText(), "regen")
+-- El StatusBar es un marco hijo, y un marco hijo tapa al padre entero: con su
+-- nivel de nacimiento el nivel de mana se comeria el cristal, las olas, las
+-- burbujas y la palabra, que es justo lo que el liquido al que releva deja ver.
+check("el StatusBar no se pone por encima", D.liquidBar:GetFrameLevel(), D.frame:GetFrameLevel())
+check("y su textura ocupa la capa del liquido", D.liquidBarTex.drawLayer, "ARTWORK")
 
 -- Un tick: el evento llega aunque el valor no se pueda comparar.
 MOCK:fire("UNIT_POWER_UPDATE", "player", "MANA")
@@ -1001,6 +1006,7 @@ MOCK:fire("UNIT_SPELLCAST_SUCCEEDED", "player", "cast-sf3", 100)
 MOCK:advance(5.9)
 check("la barra tambien entra en fase", D.state, "regen")
 check("y su StatusBar lleva el secreto", issecretvalue(D.barBar.value), true)
+check("la barra tampoco se pone por encima", D.barBar:GetFrameLevel(), D.frame:GetFrameLevel())
 check("el relleno de siempre se aparta", D.barFill:IsShown(), false)
 MB:Cancel()
 MOCK:advance(5)

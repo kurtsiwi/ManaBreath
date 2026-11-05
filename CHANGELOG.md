@@ -16,6 +16,11 @@
 - The waves hang from the StatusBar's own texture, the way they hung from the
   liquid, so they ride the surface without a single calculation per frame. The
   bar's spark does the same on its right edge.
+- The StatusBar is sunk to the frame's own level. A child frame draws above
+  everything hanging off its parent, whatever the layer, so at its birth level
+  the mana level covered the glass, the waves, the bubbles and the word — all
+  the things the texture it relieves lets through. Levelled, the layers decide
+  again, and it lands exactly where the liquid was.
 - **There is still no figure**, and there never will be: printing a number
   means formatting a secret value. What the bulb keeps is the word `regen`,
   which is a constant and costs no reading: it comes up when the rule ends and
@@ -47,14 +52,14 @@
   addon measuring anything.
 - The options panel warns too. The commands already said that `/mb rate`,
   `/mb fallback` and `/mb regen` cannot work where mana is secret, but the
-  panel offered the same three boxes without a word — and the panel is what
+  panel offered the same three boxes without a word â and the panel is what
   most people use. Their tooltips, and the verify button's, now say they need
   readable mana.
 - `/mb debug on` explains a cast it cannot confirm. When a cost comes back
   unreadable, the only way to confirm it is watching mana drop, which a secret
   value makes impossible: the countdown will not start for that cast. Measured
-  on the live client this does not happen — six casts in real combat came back
-  with a plain spell id and a readable cost — but if it ever does, the reason
+  on the live client this does not happen â six casts in real combat came back
+  with a plain spell id and a readable cost â but if it ever does, the reason
   is now on screen instead of a flask that silently fails to appear.
 - `/mb status` stops printing `restricted context:` on clients without
   `C_RestrictedActions`, which on Forever is every time. The line that matters
@@ -72,8 +77,8 @@
   documented assumption until now; it is now a measured fact, confirmed with
   `issecretvalue()` against the running client. The **maximum** mana is not
   secret, and neither is the spell's cost.
-- So the **5-second countdown is untouched** — it comes from
-  `C_Spell.GetSpellPowerCost` — and so is the `regen` notice, the sound, the
+- So the **5-second countdown is untouched** â it comes from
+  `C_Spell.GetSpellPowerCost` â and so is the `regen` notice, the sound, the
   three looks and the options panel.
 - But four things cannot work there, and this release **says so instead of
   leaving switches that quietly do nothing**:
@@ -152,11 +157,11 @@
   can be any fraction of an interval, and dividing by it would print a wild
   figure at the very moment you are looking. The price is that the first figure
   arrives with the second tick. The average is cumulative, so it sharpens by
-  itself, and it is cleared when a new rule starts — while the rule runs no
+  itself, and it is cleared when a new rule starts â while the rule runs no
   mana is coming in, so leaving the last figure there would be a lie.
 - No glow and no bubbles, for the reason text mode has none: the glow is the
   flask's silhouette and the bubbles rise inside the glass. But `/mb text off`
-  **does** work here, unlike in text mode — the bar goes on counting without
+  **does** work here, unlike in text mode â the bar goes on counting without
   the figure, whereas the text block would be left empty.
 - The width is yours through `/mb size`, but never less than about three times
   the height: below that it stops reading as a bar and starts reading as a
@@ -164,7 +169,7 @@
 - **~2 API calls per frame**, between the flask's ~5 and text mode's ~1. The
   spark hangs off the right edge of the fill, the way the wave strips hang off
   the surface of the liquid, so the only thing that moves per frame is the
-  width of the fill — the spark is dragged along for free.
+  width of the fill â the spark is dragged along for free.
 - Two new generated textures, `BarFill.tga` and `BarSpark.tga`, from the same
   `tools/make_art.py` as the flask. The empty track and the outline are flat
   colours set from Lua: two rectangles do not need art.
