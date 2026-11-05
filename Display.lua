@@ -727,6 +727,16 @@ function D:EnsureSecretFill()
     self.barBarTex = bbar.GetStatusBarTexture and bbar:GetStatusBarTexture()
     if self.barBarTex then SinkBar(bbar, self.barBarTex, f) end
 
+    -- Las dos texturas nacen en crudo, y el color de la fase se puso antes de
+    -- que existieran: la de siempre ya estaba tenida y estas no. Sin pasarselo
+    -- aqui, el primer nivel que dibujan sale blanco hasta el cambio de color
+    -- siguiente, que es el destello del primer tick.
+    local color = self:PhaseColor()
+    self.liquidBarTex:SetVertexColor(color[1], color[2], color[3])
+    if self.barBarTex then
+        self.barBarTex:SetVertexColor(color[1], color[2], color[3])
+    end
+
     self.secretReady = true
     self:LayoutSecretFill()
     return true
@@ -883,6 +893,11 @@ function D:SetPhaseColor(color)
         self.timeText:SetTextColor(color[1], color[2], color[3])
     elseif self.barMode then
         self.barFill:SetVertexColor(color[1], color[2], color[3])
+        -- El StatusBar releva al relleno tambien aqui: sin esto la barra se
+        -- quedaria en crudo toda la fase, no solo el primer instante.
+        if self.barBarTex then
+            self.barBarTex:SetVertexColor(color[1], color[2], color[3])
+        end
         -- El destello, un punto por encima del relleno: es un borde de avance,
         -- no una parte mas de la barra.
         self.barSpark:SetVertexColor(min(1, color[1] * 1.3), min(1, color[2] * 1.3),

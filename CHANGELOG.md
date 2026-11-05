@@ -21,6 +21,11 @@
   the mana level covered the glass, the waves, the bubbles and the word — all
   the things the texture it relieves lets through. Levelled, the layers decide
   again, and it lands exactly where the liquid was.
+- Both StatusBar textures are tinted the moment they are built. They are made
+  the first time the green phase needs them, long after the phase colour was
+  set, so the first level they drew came out raw until the next colour change.
+  The bar's own texture now follows the phase colour as well, which it never
+  did: there it was not a first instant, it was the whole phase.
 - **There is still no figure**, and there never will be: printing a number
   means formatting a secret value. What the bulb keeps is the word `regen`,
   which is a constant and costs no reading: it comes up when the rule ends and

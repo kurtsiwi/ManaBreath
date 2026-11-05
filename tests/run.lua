@@ -983,6 +983,10 @@ check("sin cifra, pero con la palabra", D.timeText:GetText(), "regen")
 -- burbujas y la palabra, que es justo lo que el liquido al que releva deja ver.
 check("el StatusBar no se pone por encima", D.liquidBar:GetFrameLevel(), D.frame:GetFrameLevel())
 check("y su textura ocupa la capa del liquido", D.liquidBarTex.drawLayer, "ARTWORK")
+-- La textura nace en crudo y el color de fase se puso antes de que existiera:
+-- sin tenirla al construirla, el primer nivel que dibuja sale blanco.
+local liqColor = rawget(D.liquidBarTex, "color")
+check("y nace ya tenida, no en blanco", liqColor and liqColor[1], 0.35)
 
 -- Un tick: el evento llega aunque el valor no se pueda comparar.
 MOCK:fire("UNIT_POWER_UPDATE", "player", "MANA")
@@ -1007,6 +1011,8 @@ MOCK:advance(5.9)
 check("la barra tambien entra en fase", D.state, "regen")
 check("y su StatusBar lleva el secreto", issecretvalue(D.barBar.value), true)
 check("la barra tampoco se pone por encima", D.barBar:GetFrameLevel(), D.frame:GetFrameLevel())
+local barColor = rawget(D.barBarTex, "color")
+check("y su textura toma el color de la fase", barColor and barColor[1], 0.35)
 check("el relleno de siempre se aparta", D.barFill:IsShown(), false)
 MB:Cancel()
 MOCK:advance(5)

@@ -24,6 +24,11 @@ Traduccion de [CHANGELOG.md](CHANGELOG.md), que es el que se publica.
   de nacimiento el nivel de mana tapaba el cristal, las olas, las burbujas y la
   palabra: justo lo que la textura a la que releva deja ver. Igualado, vuelve a
   mandar la capa y cae donde caia el liquido.
+- Las dos texturas del StatusBar se tinen al construirlas. Se crean la primera
+  vez que la fase verde las necesita, mucho despues de haberse puesto el color
+  de la fase, asi que el primer nivel que dibujaban salia en crudo hasta el
+  cambio de color siguiente. La de la barra ademas sigue ahora el color de
+  fase, que no seguia: alli no era un instante, era la fase entera.
 - **Sigue sin haber cifra**, y no la va a haber: imprimir un numero exige
   formatear un valor secreto. Lo que el bulbo conserva es la palabra `regen`,
   que es una constante y no cuesta ninguna lectura: sale al acabar la regla y
