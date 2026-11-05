@@ -234,7 +234,7 @@ function MB:HandleCast(castGUID, spellID)
     -- de la llamada, asi que fuera de debug no se construye ninguna cadena.
     -- Y tostring() sobre un valor secreto lanza error, de ahi el IsSecret.
     if self:GetDB().debug then
-        self:Debug("cast", IsSecret(spellID) and "<secreto>" or spellID, verdict)
+        self:Debug("cast", IsSecret(spellID) and "<secret>" or spellID, verdict)
     end
 
     if verdict == "yes" then

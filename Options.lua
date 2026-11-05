@@ -205,7 +205,7 @@ function O:Init()
     if self.category or self.failed then return end
     if not (Settings and Settings.RegisterVerticalLayoutCategory
         and Settings.RegisterAddOnSetting and Settings.RegisterAddOnCategory) then
-        self.failed = "este cliente no expone el API de Ajustes"
+        self.failed = "this client does not expose the settings API"
         return
     end
 
@@ -215,7 +215,7 @@ function O:Init()
         -- sigue funcionando entero por /mb y aqui queda el motivo.
         self.category = nil
         self.failed = tostring(err)
-        MB:Debug("panel de opciones no disponible:", self.failed)
+        MB:Debug("options panel not available:", self.failed)
     end
 end
 
@@ -233,8 +233,8 @@ end
 
 function O:Open()
     if not self.category then
-        MB:Print("no hay panel de opciones: " .. (self.failed or "sin registrar") .. ".")
-        MB:Print("usa |cffffff00/mb help|r; todo se puede configurar por comandos.")
+        MB:Print("no options panel: " .. (self.failed or "not registered") .. ".")
+        MB:Print("use |cffffff00/mb help|r; everything can be set through commands.")
         return false
     end
     if Settings.OpenToCategory then

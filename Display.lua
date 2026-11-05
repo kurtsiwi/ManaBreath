@@ -819,7 +819,7 @@ function D:Finish()
         local willPlay = PlaySoundFile and PlaySoundFile(SOUND_DROP, "Master")
         if not willPlay and not self.soundWarned then
             self.soundWarned = true
-            MB:Debug("no se pudo reproducir", SOUND_DROP)
+            MB:Debug("could not play", SOUND_DROP)
         end
     end
 end

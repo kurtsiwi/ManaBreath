@@ -2,6 +2,45 @@
 
 Traduccion de [CHANGELOG.md](CHANGELOG.md), que es el que se publica.
 
+## 1.4.0
+
+### Toda la interfaz en ingles
+
+- El panel de opciones, los comandos, los veredictos de `/mb verify` y la pista
+  debajo del matraz libre seguian hablando en espanol, que es el idioma en el
+  que se escribio el addon pero no el idioma en el que se publica. Todo lo que
+  el addon imprime o dibuja esta ahora en ingles: las secciones, etiquetas y
+  descripciones del panel, las lineas de `/mb help`, la respuesta de cada
+  comando, cada veredicto de `/mb verify` y el `drag me` debajo del matraz.
+- El motor no cambia en nada: los mismos estados, los mismos tiempos, la misma
+  deteccion. Los comentarios del codigo siguen en espanol, que es el idioma del
+  repositorio.
+- `/mb <comando> yes` funciona donde funciona `on`.
+
+### El aviso de regeneracion dura lo suficiente para leerlo
+
+- Al acabar la regla el matraz se llena y ensena `regen`, que es el aviso de que
+  el mana vuelve a entrar. Duraba **0,7 segundos**, que pasan demasiado rapido
+  para leerlos: con el mana lleno el matraz aparecia y se iba antes de poder
+  mirarlo. Ahora dura **3,7 segundos**.
+- Es configurable, con `/mb hold <0 - 10>` o con el deslizador **Time showing
+  "regen"** de la seccion *Alerts* del panel. A 0 el matraz pasa directo a
+  marcar el mana que entra, que es lo que hacia antes.
+- Lo que se alargo es el aviso, no la fase verde: el seguimiento del mana sigue
+  cerrandose al llenarse el mana, al salir de combate, al volver a gastar mana
+  o tras 4 segundos sin un solo tick.
+- El valor se acota a 0 - 10 s donde se lee, asi que un `SavedVariables`
+  corrupto no puede dejar el matraz encendido para siempre ni hacer
+  desaparecer el aviso.
+- `/mb status` lo imprime y `/mb reset` lo restaura como todo lo demas.
+
+### Confirmado en el cliente vivo
+
+- Forever lanzo el 4 de noviembre de 2026 y el addon carga en el: el
+  `ManaBreath.toc` generico es el que elige el cliente, la interfaz es de
+  verdad `16001` (build `1.60.1.70790`) y el panel se registra en
+  Opciones -> AddOns.
+
 ## 1.3.0
 
 - **Modo barra.** `/mb style bar` cambia el matraz por una barra horizontal que

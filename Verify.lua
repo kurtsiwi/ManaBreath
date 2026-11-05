@@ -30,35 +30,35 @@ end
 
 function V:Arm()
     if not MB:UsesMana() then
-        MB:Print("verificacion: esta clase o forma no usa mana.")
+        MB:Print("verify: this class or form does not use mana.")
         return
     end
     if MB:GetMana() == nil then
-        MB:Print("verificacion: el mana llega protegido, aqui no se puede medir.")
-        MB:Print("prueba fuera de instancia y fuera de combate.")
+        MB:Print("verify: mana arrives protected, it cannot be measured here.")
+        MB:Print("try it outside an instance and out of combat.")
         return
     end
     if type(C_Timer) ~= "table" or type(C_Timer.After) ~= "function" then
-        MB:Print("verificacion: C_Timer no esta disponible en este cliente.")
+        MB:Print("verify: C_Timer is not available on this client.")
         return
     end
 
     local inactive, active, hasApi = RegenRates()
     if hasApi then
-        MB:Print(("regen declarado | fuera de la regla: %s | durante: %s")
+        MB:Print(("declared regen | outside the rule: %s | during: %s")
             :format(num(inactive, "/s"), num(active, "/s")))
     else
-        MB:Print("regen declarado: GetPowerRegen no esta disponible.")
+        MB:Print("declared regen: GetPowerRegen is not available.")
     end
 
     MB.verifyArmed = true
-    MB:Print("|cffffff00armada|r: lanza un hechizo que gaste mana y no hagas nada mas.")
+    MB:Print("|cffffff00armed|r: cast a spell that spends mana and do nothing else.")
 end
 
 function V:Run(startedAt)
     local mana0 = MB:GetMana()
     if mana0 == nil then
-        MB:Print("verificacion abortada: el mana paso a estar protegido.")
+        MB:Print("verify aborted: mana became protected.")
         return
     end
 
@@ -75,7 +75,7 @@ function V:Run(startedAt)
         V.midMana = nil
 
         if mid == nil or after == nil then
-            MB:Print("verificacion abortada: el mana paso a estar protegido.")
+            MB:Print("verify aborted: mana became protected.")
             return
         end
 
@@ -86,22 +86,22 @@ function V:Run(startedAt)
         -- %+.0f y no %+d: el mana con MP5 puede ser fraccionario, y "%d" con
         -- un float sin representacion entera revienta en Lua 5.4 y trunca en
         -- silencio en el 5.1 de WoW.
-        MB:Print(("durante la ventana (%.1fs): %+.0f mana"):format(duration - 0.15, during))
-        MB:Print(("despues (%.1fs): %+.0f mana%s"):format(AFTER_RULE + 0.15, outside,
-            expected and (" | esperado ~%+.0f"):format(expected) or ""))
+        MB:Print(("inside the window (%.1fs): %+.0f mana"):format(duration - 0.15, during))
+        MB:Print(("after (%.1fs): %+.0f mana%s"):format(AFTER_RULE + 0.15, outside,
+            expected and (" | expected ~%+.0f"):format(expected) or ""))
 
         -- El veredicto se apoya en el contraste entre los dos tramos, no en
         -- valores absolutos: el MP5 del equipo si regenera dentro de la regla.
         if outside <= 0 and during <= 0 then
-            MB:Print("|cffff9900sin concluir|r: no regeneraste en ningun tramo.")
-            MB:Print("repite con el mana por debajo del maximo y sin combate.")
+            MB:Print("|cffff9900inconclusive|r: you did not regenerate in either stretch.")
+            MB:Print("try again with mana below full and out of combat.")
         elseif during <= 0 and outside > 0 then
-            MB:Print("|cff33ff33coherente|r: sin regen dentro de la ventana y con regen fuera.")
+            MB:Print("|cff33ff33consistent|r: no regen inside the window, regen outside it.")
         elseif during > 0 and outside > during then
-            MB:Print("|cffffff00parcial|r: regeneraste algo dentro (puede ser MP5) y mas fuera.")
+            MB:Print("|cffffff00partial|r: some regen inside (could be MP5) and more outside.")
         else
-            MB:Print("|cffff5555incoherente|r: regeneraste dentro de la ventana igual o mas que fuera.")
-            MB:Print("Forever puede no aplicar la regla, o durar menos de " .. duration .. " s.")
+            MB:Print("|cffff5555inconsistent|r: you regenerated inside the window as much as outside or more.")
+            MB:Print("Forever may not apply the rule, or it may last less than " .. duration .. " s.")
         end
     end)
 end

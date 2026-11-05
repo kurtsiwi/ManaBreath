@@ -547,7 +547,7 @@ MOCK.regenSuspendedUntil = MOCK.now + 5
 MOCK:fire("UNIT_SPELLCAST_SUCCEEDED", "player", "ver-1", 100)
 check("al castear se desarma", MB.verifyArmed, false)
 MOCK:advance(8, 1 / 60)
-check("veredicto coherente", saidMatch("coherente"), true)
+check("veredicto coherente", saidMatch("|cff33ff33consistent|r"), true)
 
 -- Cliente que NO aplica la regla: regenera todo el tiempo.
 said = {}
@@ -557,7 +557,7 @@ MOCK.regenSuspendedUntil = 0
 slash("verify")
 MOCK:fire("UNIT_SPELLCAST_SUCCEEDED", "player", "ver-2", 100)
 MOCK:advance(8, 1 / 60)
-check("veredicto incoherente", saidMatch("incoherente"), true)
+check("veredicto incoherente", saidMatch("|cffff5555inconsistent|r"), true)
 
 MOCK.regenPerSec = 0
 MB.Print = realPrint

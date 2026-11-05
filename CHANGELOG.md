@@ -1,5 +1,44 @@
 # Changelog
 
+## 1.4.0
+
+### The whole interface in English
+
+- The options panel, the slash commands, the verdicts of `/mb verify` and the
+  hint under an unlocked flask were all still speaking Spanish, which is the
+  language the addon was written in but not the one it is published in.
+  Everything the addon prints or draws is now in English: the panel's sections,
+  labels and tooltips, the lines of `/mb help`, every command's answer, every
+  verdict of `/mb verify` and the `drag me` under the flask.
+- Nothing about the engine changed: the same states, the same timings, the same
+  detection. The code's own comments stay in Spanish, which is the repo's
+  language.
+- `/mb <command> yes` now works wherever `on` works.
+
+### The regen notice holds long enough to read
+
+- When the rule ends the flask fills up and shows `regen`, the notice that mana
+  is coming back. It held for **0.7 seconds**, which goes by too fast to read:
+  with mana full the flask was there and gone before you could look at it. It
+  now holds **3.7 seconds**.
+- It is configurable, with `/mb hold <0 - 10>` or the **Time showing "regen"**
+  slider in the panel's *Alerts* section. At 0 the flask goes straight to
+  tracking the mana coming in, which is what it did before.
+- What was extended is the notice, not the green phase: the mana tracking still
+  ends when mana fills up, when you leave combat, when you spend mana again or
+  after 4 seconds without a single tick.
+- The value is clamped to 0 - 10 s where it is read, so a corrupted
+  `SavedVariables` cannot leave the flask lit forever or make the notice
+  disappear.
+- `/mb status` prints it, and `/mb reset` restores it like every other setting.
+
+### Confirmed on the live client
+
+- Forever launched on 4 November 2026, and the addon loads on it: the generic
+  `ManaBreath.toc` is the one the client picks, the interface really is
+  `16001` (build `1.60.1.70790`) and the options panel registers in
+  Options -> AddOns.
+
 ## 1.3.0
 
 ### A third look

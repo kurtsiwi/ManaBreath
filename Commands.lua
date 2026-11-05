@@ -3,7 +3,7 @@ local ADDON_NAME, ns = ...
 local MB = ns.addon
 
 local function OnOff(value)
-    if value == "on" or value == "1" or value == "si" then return true end
+    if value == "on" or value == "1" or value == "yes" or value == "si" then return true end
     if value == "off" or value == "0" or value == "no" then return false end
     return nil
 end
@@ -20,26 +20,26 @@ local function Toggle(key, value, label)
 end
 
 local function Help()
-    MB:Print("comandos disponibles:")
-    print("  |cffffff00/mb config|r - abre el panel de opciones")
-    print("  |cffffff00/mb lock|r / |cffffff00unlock|r - fija o libera el matraz")
-    print("  |cffffff00/mb test|r - demo de 5 segundos")
-    print("  |cffffff00/mb style flask/text/bar|r - matraz, solo letras o barra")
-    print("  |cffffff00/mb scale <n>|r - escala (0.5 - 3)")
-    print("  |cffffff00/mb size <ancho> <alto>|r - tamano del matraz")
-    print("  |cffffff00/mb glow regen/rule/off|r - cuando brilla el matraz")
-    print("  |cffffff00/mb regen on/off|r - seguir el mana que vuelve tras la regla")
-    print("  |cffffff00/mb hold <s>|r - cuanto dura el aviso \"regen\" (0 - 10)")
-    print("  |cffffff00/mb sound on/off|r - aviso sonoro al terminar")
-    print("  |cffffff00/mb text on/off|r - contador dentro del matraz")
-    print("  |cffffff00/mb rate on/off|r - mana por segundo (barra y modo texto)")
-    print("  |cffffff00/mb always on/off|r - mostrar el matraz siempre")
-    print("  |cffffff00/mb fallback on/off|r - detectar por bajadas de mana")
-    print("  |cffffff00/mb channel on/off|r - reiniciar al cortar una canalizacion")
-    print("  |cffffff00/mb verify|r - mide si la regla de 5 s existe de verdad")
-    print("  |cffffff00/mb debug on/off|r - imprime el costo leido de cada casteo")
-    print("  |cffffff00/mb reset|r - vuelve a los valores por defecto")
-    print("  |cffffff00/mb status|r - estado actual")
+    MB:Print("commands:")
+    print("  |cffffff00/mb config|r - open the options panel")
+    print("  |cffffff00/mb lock|r / |cffffff00unlock|r - pin or release the flask")
+    print("  |cffffff00/mb test|r - 5-second demo")
+    print("  |cffffff00/mb style flask/text/bar|r - flask, text only or bar")
+    print("  |cffffff00/mb scale <n>|r - scale (0.5 - 3)")
+    print("  |cffffff00/mb size <width> <height>|r - frame size")
+    print("  |cffffff00/mb glow regen/rule/off|r - when the flask glows")
+    print("  |cffffff00/mb regen on/off|r - track the mana coming back after the rule")
+    print("  |cffffff00/mb hold <s>|r - how long the |cffffff00regen|r notice holds (0 - 10)")
+    print("  |cffffff00/mb sound on/off|r - a water drop when the rule ends")
+    print("  |cffffff00/mb text on/off|r - countdown inside the bulb")
+    print("  |cffffff00/mb rate on/off|r - mana per second (bar and text mode)")
+    print("  |cffffff00/mb always on/off|r - keep the flask always visible")
+    print("  |cffffff00/mb fallback on/off|r - also detect via mana drops")
+    print("  |cffffff00/mb channel on/off|r - restart when a channel is cut")
+    print("  |cffffff00/mb verify|r - measure whether the 5 s rule really exists")
+    print("  |cffffff00/mb debug on/off|r - print the cost read for every cast")
+    print("  |cffffff00/mb reset|r - restore defaults")
+    print("  |cffffff00/mb status|r - current state")
 end
 
 local handlers = {}
@@ -48,7 +48,7 @@ handlers.config = function()
     if ns.options then
         ns.options:Open()
     else
-        MB:Print("panel de opciones no disponible; usa |cffffff00/mb help|r.")
+        MB:Print("no options panel; use |cffffff00/mb help|r.")
     end
 end
 
@@ -58,65 +58,65 @@ handlers.lock = function()
     local db = MB:GetDB()
     db.locked = true
     ns.display:ApplySettings()
-    MB:Print("matraz |cff33ff33fijado|r.")
+    MB:Print("flask |cff33ff33pinned|r.")
 end
 
 handlers.unlock = function()
     local db = MB:GetDB()
     db.locked = false
     ns.display:ApplySettings()
-    MB:Print("matraz |cffffff00libre|r: arrastralo con el boton izquierdo.")
+    MB:Print("flask |cffffff00loose|r: drag it with the left mouse button.")
 end
 
 handlers.test = function()
     MB:Start(GetTime(), true)
-    MB:Print("demo de " .. MB.RULE_DURATION .. " segundos.")
+    MB:Print("demo of " .. MB.RULE_DURATION .. " seconds.")
 end
 
 handlers.scale = function(value)
     local scale = tonumber(value)
     if not scale or scale < 0.5 or scale > 3 then
-        MB:Print("uso: /mb scale <0.5 - 3>")
+        MB:Print("usage: /mb scale <0.5 - 3>")
         return
     end
     MB:GetDB().scale = scale
     ns.display:ApplySettings()
-    MB:Print("escala: " .. scale)
+    MB:Print("scale: " .. scale)
 end
 
 handlers.size = function(width, height)
     width, height = tonumber(width), tonumber(height)
     if not width or not height or width < 40 or height < 6 then
-        MB:Print("uso: /mb size <ancho >= 40> <alto >= 6>")
-        MB:Print("el dibujo esta hecho para un marco cuadrado; para agrandarlo")
-        MB:Print("sin deformarlo conviene |cffffff00/mb scale|r.")
+        MB:Print("usage: /mb size <width >= 40> <height >= 6>")
+        MB:Print("the art assumes a square frame; to make it bigger without")
+        MB:Print("deforming it, use |cffffff00/mb scale|r.")
         return
     end
     local db = MB:GetDB()
     db.width, db.height = width, height
     ns.display:ApplySettings()
-    MB:Print(("tamano: %dx%d"):format(width, height))
+    MB:Print(("size: %dx%d"):format(width, height))
     if db.style == "text" then
-        MB:Print("en modo texto el ancho lo pone la cadena mas larga; manda el alto.")
+        MB:Print("in text mode the widest string sets the width; the height rules.")
     elseif db.style == "bar" then
-        MB:Print("en modo barra el ancho es el tuyo, pero nunca menos de algo mas")
-        MB:Print("de tres veces el alto: por debajo deja de leerse como barra.")
+        MB:Print("in bar mode the width is yours, but never less than about three")
+        MB:Print("times the height: below that it stops reading as a bar.")
     end
 end
 
 -- Las tres pieles. Por debajo es el mismo addon: cambia lo que se dibuja, no
 -- lo que se detecta ni cuanto dura la regla.
 local STYLE_MODES = {
-    flask = "el matraz animado, con liquido, olas y burbujas",
-    text = "solo la cifra, con la etiqueta y el mana por segundo debajo",
-    bar = "una barra horizontal, con el mana por segundo debajo",
+    flask = "the animated flask, with liquid, waves and bubbles",
+    text = "the figure alone, with the label and the mana per second underneath",
+    bar = "a horizontal bar, with the mana per second underneath",
 }
 
 local STYLE_ORDER = { "flask", "text", "bar" }
 
 handlers.style = function(value)
     if not value or not STYLE_MODES[value] then
-        MB:Print("uso: /mb style flask | text | bar")
+        MB:Print("usage: /mb style flask | text | bar")
         for _, mode in ipairs(STYLE_ORDER) do
             print(("  |cffffff00%s|r - %s"):format(mode, STYLE_MODES[mode]))
         end
@@ -125,32 +125,32 @@ handlers.style = function(value)
     MB:GetDB().style = value
     ns.display:ApplySettings()
     if ns.options then ns.options:Refresh() end
-    MB:Print("estilo: |cff33ff33" .. value .. "|r (" .. STYLE_MODES[value] .. ")")
+    MB:Print("style: |cff33ff33" .. value .. "|r (" .. STYLE_MODES[value] .. ")")
     if value == "text" then
         -- Tres opciones dejan de tener efecto, y callarselo se lee como que
         -- el mando no funciona.
-        MB:Print("en modo texto no hay halo ni burbujas, y el contador no se")
-        MB:Print("puede apagar: es lo unico que se ve.")
+        MB:Print("text mode has no glow or bubbles, and the counter cannot be")
+        MB:Print("turned off: the figure is the only thing there.")
     elseif value == "bar" then
-        MB:Print("en modo barra no hay halo ni burbujas.")
+        MB:Print("bar mode has no glow or bubbles.")
     end
     if value ~= "flask" then
-        MB:Print("el mana por segundo aparece con el segundo tick, que es")
-        MB:Print("cuando hay algo medido; se quita con |cffffff00/mb rate off|r.")
+        MB:Print("the mana per second shows up with the second tick, which is")
+        MB:Print("when there is something measured; |cffffff00/mb rate off|r takes it away.")
     end
 end
 
 -- El brillo marca una sola fase, la que se elija: encenderlo en las dos lo
 -- dejaria sin decir nada.
 local GLOW_MODES = {
-    regen = "al acabar la regla, mientras el mana vuelve a subir",
-    rule = "durante los 5 segundos de la regla",
-    off = "nunca",
+    regen = "when the rule ends, while mana is coming back",
+    rule = "during the 5 seconds of the rule",
+    off = "never",
 }
 
 handlers.glow = function(value)
     if not value or not GLOW_MODES[value] then
-        MB:Print("uso: /mb glow regen | rule | off")
+        MB:Print("usage: /mb glow regen | rule | off")
         for _, mode in ipairs({ "regen", "rule", "off" }) do
             print(("  |cffffff00%s|r - %s"):format(mode, GLOW_MODES[mode]))
         end
@@ -159,19 +159,19 @@ handlers.glow = function(value)
     MB:GetDB().glow = value
     ns.display:RefreshGlow()
     if ns.options then ns.options:Refresh() end
-    MB:Print("brillo: |cff33ff33" .. value .. "|r (" .. GLOW_MODES[value] .. ")")
+    MB:Print("glow: |cff33ff33" .. value .. "|r (" .. GLOW_MODES[value] .. ")")
 end
 
 -- La fase de regen se acaba sola de tres maneras: mana lleno, salir de
 -- combate o volver a entrar en la regla. Lo dice el comando porque es la
 -- diferencia entre un aviso y un elemento fijo de la interfaz.
 handlers.regen = function(value)
-    local enabled = Toggle("holdRegen", value, "seguimiento de la regeneracion")
+    local enabled = Toggle("holdRegen", value, "regen tracking")
     if enabled then
-        MB:Print("el matraz se queda marcando el mana que entra hasta que se")
-        MB:Print("llene, salgas de combate o vuelvas a gastar mana.")
+        MB:Print("the flask goes on tracking the mana coming in until it fills")
+        MB:Print("up, you leave combat or you spend mana again.")
     else
-        MB:Print("el matraz se apagara en cuanto acabe la regla.")
+        MB:Print("the flask will go out as soon as the rule ends.")
         ns.display:EndRegen()
     end
 end
@@ -182,24 +182,24 @@ end
 handlers.hold = function(value)
     local seconds = tonumber(value)
     if not seconds or seconds < 0 or seconds > 10 then
-        MB:Print("uso: /mb hold <0 - 10>")
-        MB:Print("segundos que se queda el aviso |cffffff00regen|r al acabar la regla.")
+        MB:Print("usage: /mb hold <0 - 10>")
+        MB:Print("seconds the |cffffff00regen|r notice holds when the rule ends.")
         return
     end
     MB:GetDB().doneHold = seconds
     if ns.options then ns.options:Refresh() end
-    MB:Print(("aviso \"regen\": |cff33ff33%.1fs|r"):format(seconds))
+    MB:Print(("|cffffff00regen|r notice: |cff33ff33%.1fs|r"):format(seconds))
     if seconds == 0 then
-        MB:Print("a 0 el matraz pasa directo a marcar el mana que entra.")
+        MB:Print("at 0 the flask goes straight to tracking the mana coming in.")
     end
 end
 
 handlers.sound = function(value)
-    Toggle("sound", value, "sonido")
+    Toggle("sound", value, "sound")
 end
 
 handlers.text = function(value)
-    Toggle("showText", value, "textos")
+    Toggle("showText", value, "counter")
     ns.display:ApplySettings()
 end
 
@@ -208,31 +208,31 @@ end
 -- no hay sitio para una segunda cifra, asi que alli el mando se mide igual
 -- pero no se ve, y callarselo se lee como que no funciona.
 handlers.rate = function(value)
-    local enabled = Toggle("showRate", value, "mana por segundo")
+    local enabled = Toggle("showRate", value, "mana per second")
     ns.display:ApplySettings()
     if ns.options then ns.options:Refresh() end
     if enabled and MB:GetDB().style == "flask" then
-        MB:Print("el matraz no lo dibuja: no hay sitio para una segunda cifra.")
-        MB:Print("se ve en |cffffff00/mb style bar|r y en |cffffff00/mb style text|r.")
+        MB:Print("the flask does not draw it: no room for a second figure.")
+        MB:Print("it shows in |cffffff00/mb style bar|r and |cffffff00/mb style text|r.")
     end
 end
 
 handlers.always = function(value)
-    Toggle("alwaysShow", value, "mostrar siempre")
+    Toggle("alwaysShow", value, "always visible")
     ns.display:UpdateShown()
 end
 
 handlers.fallback = function(value)
-    local enabled = Toggle("powerFallback", value, "respaldo por mana")
+    local enabled = Toggle("powerFallback", value, "mana fallback")
     if enabled then
-        MB:Print("|cffff9900ojo|r: puede dar falsos positivos si algo mas te quita mana.")
+        MB:Print("|cffff9900careful|r: this can produce false positives if something else drains your mana.")
     end
 end
 
 handlers.channel = function(value)
-    local enabled = Toggle("channelRestart", value, "reinicio al cortar canal")
+    local enabled = Toggle("channelRestart", value, "restart on channel stop")
     if not enabled then
-        MB:Print("las canalizaciones solo arrancaran el contador al empezar.")
+        MB:Print("channels will only start the countdown when they begin.")
     end
 end
 
@@ -240,7 +240,7 @@ handlers.verify = function()
     if ns.verify then
         ns.verify:Arm()
     else
-        MB:Print("verificacion no disponible: falta Verify.lua.")
+        MB:Print("verify not available: Verify.lua is missing.")
     end
 end
 
@@ -256,38 +256,38 @@ handlers.reset = function()
     end
     ns.display:ApplySettings()
     if ns.options then ns.options:Refresh() end
-    MB:Print("opciones restauradas.")
+    MB:Print("options restored.")
 end
 
 handlers.status = function()
     local db = MB:GetDB()
-    MB:Print(("mana: %s | regla activa: %s | restante: %.1fs")
-        :format(MB:UsesMana() and "si" or "no",
-                MB:IsActive() and "si" or "no",
+    MB:Print(("mana: %s | rule active: %s | left: %.1fs")
+        :format(MB:UsesMana() and "yes" or "no",
+                MB:IsActive() and "yes" or "no",
                 MB:Remaining()))
-    MB:Print(("estilo: %s | fijado: %s | escala: %s | sonido: %s | brillo: %s")
+    MB:Print(("style: %s | pinned: %s | scale: %s | sound: %s | glow: %s")
         :format(tostring(db.style), tostring(db.locked), tostring(db.scale),
                 tostring(db.sound), tostring(db.glow)))
-    MB:Print(("contador: %s | mana por segundo: %s")
+    MB:Print(("counter: %s | mana per second: %s")
         :format(tostring(db.showText), tostring(db.showRate)))
-    MB:Print(("respaldo: %s | canal: %s | seguir regen: %s | aviso: %.1fs")
+    MB:Print(("fallback: %s | channel: %s | track regen: %s | notice: %.1fs")
         :format(tostring(db.powerFallback), tostring(db.channelRestart),
                 tostring(db.holdRegen),
                 tonumber(db.doneHold) or MB.defaults.doneHold))
-    MB:Print("fase del matraz: " .. tostring(ns.display and ns.display.state))
+    MB:Print("flask phase: " .. tostring(ns.display and ns.display.state))
 
     if MB.costApi then
-        MB:Print("lectura de costes: " .. MB.costApi)
+        MB:Print("cost reads: " .. MB.costApi)
     else
-        MB:Print("lectura de costes: |cffff5555ninguna disponible|r")
-        MB:Print("todo casteo quedara en 'unknown' y dependera del mana.")
+        MB:Print("cost reads: |cffff5555none available|r")
+        MB:Print("every cast will land as 'unknown' and depend on mana.")
     end
 
     MB:UpdateRestrictionState()
     if MB.restrictionApi then
-        MB:Print(("contexto restringido: %s"):format(MB.restricted and "si" or "no"))
+        MB:Print(("restricted context: %s"):format(MB.restricted and "yes" or "no"))
     else
-        MB:Print("contexto restringido: |cff888888C_RestrictedActions no disponible|r")
+        MB:Print("restricted context: |cff888888C_RestrictedActions not available|r")
     end
 end
 
@@ -309,7 +309,7 @@ SlashCmdList["MANABREATH"] = function(msg)
         handler(args[2] and string.lower(args[2]) or nil, args[3])
     else
         if command ~= "" then
-            MB:Print("comando desconocido: " .. command)
+            MB:Print("unknown command: " .. command)
         end
         Help()
     end
