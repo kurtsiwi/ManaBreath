@@ -1037,6 +1037,10 @@ print("\n-- los .toc no se desincronizan --")
 -- todos, y olvidarse de uno no se nota hasta que el addon no carga en ese
 -- cliente. Esto lo convierte en un fallo de la suite.
 --
+-- Viven en tests/clients/ y no en la raiz: CurseForge deduce las versiones de
+-- juego escaneando el repo, y en la raiz hacian que el archivo publicado se
+-- anunciara para Retail y Classic Era. Ver tests/clients/README.md.
+--
 -- No hay copia con sufijo para Forever a proposito: el generico ya lleva su
 -- interfaz y es el que carga cuando ningun sufijo coincide, asi que una copia
 -- con sufijo solo podria acertar lo que el generico ya hace. Las dos de abajo
@@ -1044,8 +1048,8 @@ print("\n-- los .toc no se desincronizan --")
 -- Classic Era no vean el addon como desactualizado.
 local TOCS = {
     ["ManaBreath.toc"] = 16001,           -- el unico que se publica; lo carga Forever
-    ["ManaBreath_Mainline.toc"] = 120001, -- Retail de Midnight, solo pruebas
-    ["ManaBreath_Vanilla.toc"] = 11507,   -- Classic Era, solo pruebas
+    ["tests/clients/ManaBreath_Mainline.toc"] = 120001, -- Retail de Midnight
+    ["tests/clients/ManaBreath_Vanilla.toc"] = 11507,   -- Classic Era
 }
 
 -- Devuelve las directivas (menos Interface) y la lista de archivos. Las lineas

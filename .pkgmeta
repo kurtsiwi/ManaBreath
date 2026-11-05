@@ -7,16 +7,15 @@ manual-changelog:
   markup-type: markdown
 
 ignore:
-  # Copias de prueba para clientes vivos antes del lanzamiento de Forever.
-  # Fuera del zip: anunciarian compatibilidad con Retail y Classic Era, que
-  # todavia no esta verificada.
-  - ManaBreath_Mainline.toc
-  - ManaBreath_Vanilla.toc
   # El avatar es para la pagina de CurseForge, no para el juego: dentro del
   # zip solo seria peso muerto en la carpeta de addons de cada jugador.
   - logo.png
   - .github
   - .luarc.json
+  # Aqui viven tambien las copias de .toc para clientes vivos. Fuera de la
+  # raiz no solo por el zip: CurseForge deduce las versiones de juego
+  # escaneando el repo, y en la raiz le hacian anunciar Retail y Classic Era,
+  # que no estan verificadas.
   - tests
   - tools
   - MANABREATH_CONTEXTO.md

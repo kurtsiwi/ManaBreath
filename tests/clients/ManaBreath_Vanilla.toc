@@ -4,7 +4,9 @@
 # regla dura 5.0s y como cobran el mana las canalizaciones.
 # El addon degrada solo: issecretvalue, C_RestrictedActions, C_Spell y el API de
 # ajustes estan todos tras guardas. Sin panel de opciones aqui, todo por /mb.
-# Fuera del paquete publicado (.pkgmeta). Confirmar con /dump select(4, GetBuildInfo())
+# Fuera de la raiz a proposito: ver tests/clients/README.md. Para usarlo, copiar
+# este archivo a la raiz del addon. Confirmar el cliente con
+# /dump select(4, GetBuildInfo())
 ## Title: ManaBreath
 ## Notes: An animated flask that shows when the 5-second mana regeneration rule is active.
 ## Notes-esES: Un matraz animado que indica cuándo está activa la regla de 5 segundos de regeneración de maná.
