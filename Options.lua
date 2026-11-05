@@ -17,6 +17,12 @@ local format = string.format
 -- CreateCheckBox y CreateDropDown antes de la 11.0.
 local BOOL, NUMBER, STRING = "boolean", "number", "string"
 
+-- Lo que leer el mana implica, para los mandos que no pueden funcionar sin
+-- ello. Va redactado sin condicionales porque el tooltip se construye una vez
+-- al entrar, y que un valor sea secreto se decide lectura a lectura.
+local NEEDS_MANA = " Needs readable mana: where mana is a secret value, as on "
+    .. "Forever, this does nothing, and /mb status says so."
+
 local STYLE_OPTIONS = {
     { value = "flask", label = "Animated flask",
       tooltip = "The glass flask: the liquid rises over the 5 seconds, with waves and bubbles." },
@@ -165,7 +171,7 @@ local function Build(self)
         "The mana coming in while you regenerate, under the figure. The bar and "
         .. "text mode draw it; the flask has no room for a second figure, so it is "
         .. "left out there. It shows up with the second tick, which is when there "
-        .. "is something measured.")
+        .. "is something measured." .. NEEDS_MANA)
     self:AddCheckbox("alwaysShow", "Keep the flask always visible",
         "Idle too. It costs nothing per frame: an idle flask does not animate.")
 
@@ -175,19 +181,21 @@ local function Build(self)
         .. "would say nothing. There is no glow in text mode.")
     self:AddCheckbox("holdRegen", "Track the mana coming back",
         "When the rule ends the flask goes on tracking the mana coming in, until "
-        .. "it fills up, you leave combat or you spend mana again.")
+        .. "it fills up, you leave combat or you spend mana again." .. NEEDS_MANA)
     self:AddCheckbox("sound", "Sound alert when the rule ends")
     self:AddHold()
 
     self:AddHeader("Detection")
     self:AddCheckbox("powerFallback", "Also detect via mana drops",
-        "This can produce false positives if something else drains your mana.")
+        "This can produce false positives if something else drains your mana."
+        .. NEEDS_MANA)
     self:AddCheckbox("channelRestart", "Restart when a channel is cut",
         "A channel spends mana for as long as it lasts, so the rule should count "
         .. "from the last tick. If Forever charges it all up front, untick this.")
     self:AddButton("Measure the rule", "Check",
         "Arms /mb verify: cast a spell that spends mana and then do nothing else. "
-        .. "It measures mana inside and outside the window and says whether the rule really exists.",
+        .. "It measures mana inside and outside the window and says whether the rule "
+        .. "really exists." .. NEEDS_MANA,
         function()
             if ns.verify then ns.verify:Arm() end
         end)

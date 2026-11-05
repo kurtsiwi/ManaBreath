@@ -852,6 +852,7 @@ said = {}
 MB.verifyArmed = nil
 slash("verify")
 check("verify lo explica", saidMatch("secret value"), true)
+check("pero antes declara lo que sabe", saidMatch("declared regen"), true)
 check("y no se arma", MB.verifyArmed, nil)
 check("sin mandar a cambiar de sitio", saidMatch("outside an instance"), false)
 
@@ -871,6 +872,26 @@ check("el seguimiento avisa", saidMatch("not on this client"), true)
 said = {}
 slash("status")
 check("status lo imprime", saidMatch("mana reads: |cffff9900secret|r"), true)
+check("con el API, el contexto restringido se imprime", saidMatch("restricted context"), true)
+
+-- Forever no trae C_RestrictedActions, y repetirlo en cada status era ruido.
+local realRestricted = C_RestrictedActions
+C_RestrictedActions = nil
+said = {}
+slash("status")
+check("sin el API, esa linea desaparece", saidMatch("restricted context"), false)
+check("y la del mana se queda", saidMatch("mana reads:"), true)
+C_RestrictedActions = realRestricted
+
+said = {}
+slash("debub")
+check("un dedazo se corrige", saidMatch("unknown command: debub"), true)
+check("y manda a /mb help", saidMatch("for the list"), true)
+check("sin volcar los 19 comandos", saidMatch("open the options panel"), false)
+
+said = {}
+slash("")
+check("pero /mb a secas si los da", saidMatch("commands:"), true)
 
 -- Y con el mana legible, los mismos mandos dicen lo de siempre.
 MOCK.mana = realMana141

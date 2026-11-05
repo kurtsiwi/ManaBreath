@@ -247,6 +247,14 @@ function MB:HandleCast(castGUID, spellID)
     -- Y tostring() sobre un valor secreto lanza error, de ahi el IsSecret.
     if self:GetDB().debug then
         self:Debug("cast", IsSecret(spellID) and "<secret>" or spellID, verdict)
+        -- Un costo ilegible se confirma mirando el mana, y con el mana secreto
+        -- esa via no existe: el contador no va a arrancar para ese casteo.
+        -- Medido en el cliente vivo no pasa (los costes llegan legibles), pero
+        -- si alguna vez pasa, que se vea el motivo en vez de un matraz que no
+        -- aparece.
+        if verdict == "unknown" and self:ManaIsSecret() then
+            self:Debug("cannot confirm: cost unreadable and mana is secret")
+        end
     end
 
     if verdict == "yes" then

@@ -2,6 +2,34 @@
 
 Traduccion de [CHANGELOG.md](CHANGELOG.md), que es el que se publica.
 
+## 1.4.2
+
+### Decir lo que todavia se puede saber
+
+- `/mb verify` ahora imprime **lo que el cliente declara** antes de rendirse.
+  `GetPowerRegen()` devuelve dos cifras, tu regeneracion fuera de la regla y
+  durante ella, y no llegan protegidas. La comprobacion miraba el mana primero
+  y se iba, asi que en Forever esas dos cifras se leian y se tiraban. Son lo
+  mas parecido a una confirmacion que queda: `during` en 0 con `outside` por
+  encima es el cliente aplicando la regla, sin que el addon mida nada.
+- El panel de opciones tambien avisa. Los comandos ya decian que `/mb rate`,
+  `/mb fallback` y `/mb regen` no pueden funcionar donde el mana es secreto,
+  pero el panel ofrecia esas mismas tres casillas sin una palabra — y el panel
+  es lo que usa la mayoria. Sus descripciones, y la del boton de verificar,
+  dicen ahora que necesitan mana legible.
+- `/mb debug on` explica el casteo que no puede confirmar. Cuando un coste
+  llega ilegible, la unica forma de confirmarlo es ver bajar el mana, y un
+  valor secreto lo impide: el contador no arrancara para ese casteo. Medido en
+  el cliente vivo no pasa — seis casteos en combate real llegaron con el id
+  del hechizo a la vista y el coste legible — pero si alguna vez pasa, el
+  motivo sale en pantalla en vez de un matraz que no aparece y no dice por que.
+- `/mb status` deja de imprimir `restricted context:` en clientes sin
+  `C_RestrictedActions`, que en Forever es siempre. La linea que importa alli
+  es `mana reads:`, y esta justo encima.
+- Un dedazo ya no vuelca la ayuda entera encima de lo que estuvieras leyendo.
+  `/mb debub` dice que no entendio y manda a `/mb help`; `/mb` a secas sigue
+  dandolo todo.
+
 ## 1.4.1
 
 ### Lo que Forever permite de verdad

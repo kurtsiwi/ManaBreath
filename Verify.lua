@@ -33,6 +33,18 @@ function V:Arm()
         MB:Print("verify: this class or form does not use mana.")
         return
     end
+    -- Lo que el cliente declara por su cuenta, y lo primero que se imprime:
+    -- si GetPowerRegen no llega protegido, estas dos cifras ya dicen si la
+    -- regla existe sin medir nada. Va antes del chequeo del mana porque es lo
+    -- unico que queda cuando el mana es secreto, y antes se perdia.
+    local inactive, active, hasApi = RegenRates()
+    if hasApi then
+        MB:Print(("declared regen | outside the rule: %s | during: %s")
+            :format(num(inactive, "/s"), num(active, "/s")))
+    else
+        MB:Print("declared regen: GetPowerRegen is not available.")
+    end
+
     if MB:GetMana() == nil then
         -- Un mana secreto no es un mal momento: es el diseno del cliente, y
         -- repetirlo en otro sitio no va a cambiarlo. Decirlo ahorra que
@@ -42,6 +54,10 @@ function V:Arm()
             MB:Print("the addon can draw it but never read it, so the rule cannot")
             MB:Print("be measured. The countdown is unaffected: it comes from the")
             MB:Print("spell's cost, which is not secret.")
+            if hasApi and inactive ~= nil and active ~= nil then
+                MB:Print("the declared figures above are what is left: |cffffff00during|r")
+                MB:Print("at 0 with |cffffff00outside|r above it is the client applying the rule.")
+            end
         else
             MB:Print("verify: mana could not be read here.")
             MB:Print("try it outside an instance and out of combat.")
@@ -51,14 +67,6 @@ function V:Arm()
     if type(C_Timer) ~= "table" or type(C_Timer.After) ~= "function" then
         MB:Print("verify: C_Timer is not available on this client.")
         return
-    end
-
-    local inactive, active, hasApi = RegenRates()
-    if hasApi then
-        MB:Print(("declared regen | outside the rule: %s | during: %s")
-            :format(num(inactive, "/s"), num(active, "/s")))
-    else
-        MB:Print("declared regen: GetPowerRegen is not available.")
     end
 
     MB.verifyArmed = true

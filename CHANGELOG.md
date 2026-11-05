@@ -1,5 +1,34 @@
 # Changelog
 
+## 1.4.2
+
+### Saying what can still be known
+
+- `/mb verify` now prints **what the client declares** before it gives up.
+  `GetPowerRegen()` returns two figures, your regeneration outside the rule
+  and during it, and they do not arrive protected. The check used to look at
+  your mana first and return, so on Forever those two figures were read and
+  then thrown away. They are the closest thing left to a confirmation: `during`
+  at 0 with `outside` above it is the client applying the rule, without the
+  addon measuring anything.
+- The options panel warns too. The commands already said that `/mb rate`,
+  `/mb fallback` and `/mb regen` cannot work where mana is secret, but the
+  panel offered the same three boxes without a word — and the panel is what
+  most people use. Their tooltips, and the verify button's, now say they need
+  readable mana.
+- `/mb debug on` explains a cast it cannot confirm. When a cost comes back
+  unreadable, the only way to confirm it is watching mana drop, which a secret
+  value makes impossible: the countdown will not start for that cast. Measured
+  on the live client this does not happen — six casts in real combat came back
+  with a plain spell id and a readable cost — but if it ever does, the reason
+  is now on screen instead of a flask that silently fails to appear.
+- `/mb status` stops printing `restricted context:` on clients without
+  `C_RestrictedActions`, which on Forever is every time. The line that matters
+  there is `mana reads:`, and it is right above.
+- A typo no longer dumps the whole help on top of whatever you were reading.
+  `/mb debub` says what it did not understand and points at `/mb help`; `/mb`
+  on its own still lists everything.
+
 ## 1.4.1
 
 ### What Forever actually allows

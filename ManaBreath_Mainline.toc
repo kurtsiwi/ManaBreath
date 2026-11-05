@@ -2,14 +2,15 @@
 # Copia de prueba para el Retail de Midnight, que ya esta vivo. Forever corre
 # sobre este motor, asi que cargar aqui prueba el parseo del .toc, el dibujo del
 # matraz, el arrastre, los 19 comandos y el panel de opciones. La regla de 5s no
-# existe en Retail: "/mb verify" debe decir inconsistent, y eso es exito.
+# existe en Retail: pero alli el mana tambien es secreto, asi que "/mb verify"
+# respondera lo del valor secreto en vez de medir nada.
 # Fuera del paquete publicado (.pkgmeta). Confirmar con /dump select(4, GetBuildInfo())
 ## Title: ManaBreath
 ## Notes: An animated flask that shows when the 5-second mana regeneration rule is active.
 ## Notes-esES: Un matraz animado que indica cuándo está activa la regla de 5 segundos de regeneración de maná.
 ## Notes-esMX: Un matraz animado que indica cuándo está activa la regla de 5 segundos de regeneración de maná.
 ## Author: kurtsiwi
-## Version: 1.4.1
+## Version: 1.4.2
 ## Category: Combat
 ## SavedVariables: ManaBreathDB
 ## AllowAddOnTableAccess: 0

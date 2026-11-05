@@ -299,11 +299,12 @@ handlers.status = function()
         MB:Print("every cast will land as 'unknown' and depend on mana.")
     end
 
+    -- Solo si el cliente la tiene. En Forever no existe, y repetirlo en cada
+    -- /mb status era una linea de ruido fija: lo que alli importa es si el
+    -- mana se puede leer, y eso ya esta arriba.
     MB:UpdateRestrictionState()
     if MB.restrictionApi then
         MB:Print(("restricted context: %s"):format(MB.restricted and "yes" or "no"))
-    else
-        MB:Print("restricted context: |cff888888C_RestrictedActions not available|r")
     end
 end
 
@@ -323,10 +324,12 @@ SlashCmdList["MANABREATH"] = function(msg)
 
     if handler then
         handler(args[2] and string.lower(args[2]) or nil, args[3])
-    else
-        if command ~= "" then
-            MB:Print("unknown command: " .. command)
-        end
+    elseif command == "" then
         Help()
+    else
+        -- Un dedazo no merece volcar las 19 lineas de ayuda encima de lo que
+        -- estuvieras leyendo: /mb a secas las sigue dando.
+        MB:Print("unknown command: " .. command)
+        MB:Print("type |cffffff00/mb help|r for the list.")
     end
 end
