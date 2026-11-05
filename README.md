@@ -38,7 +38,11 @@ The flask goes through two phases, and the colour tells them apart.
 | Number in the bulb | Seconds left, to one decimal |
 | Waves and bubbles | The rule is running |
 
-**Green — you are regenerating.** It starts the moment the rule ends.
+**Green — you are regenerating.** It starts the moment the rule ends: the
+flask fills up and shows `regen` for **3.7 seconds**, the notice that mana is
+coming back, and only then switches to tracking your real mana. `/mb hold
+<seconds>`, or the slider in the panel, sets that; at 0 it goes straight to the
+mana.
 
 | | |
 | --- | --- |
@@ -159,6 +163,7 @@ flask even mid-rule.
 | `/mb sound on/off` | A water drop when the rule ends |
 | `/mb glow regen/rule/off` | When the flask glows |
 | `/mb regen on/off` | Track the mana coming back after the rule |
+| `/mb hold <seconds>` | How long the `regen` notice holds, 0 to 10 |
 | `/mb text on/off` | Countdown inside the bulb |
 | `/mb rate on/off` | Mana per second, in the bar and in text mode |
 | `/mb always on/off` | Keep the flask always visible |

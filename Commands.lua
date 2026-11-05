@@ -29,6 +29,7 @@ local function Help()
     print("  |cffffff00/mb size <ancho> <alto>|r - tamano del matraz")
     print("  |cffffff00/mb glow regen/rule/off|r - cuando brilla el matraz")
     print("  |cffffff00/mb regen on/off|r - seguir el mana que vuelve tras la regla")
+    print("  |cffffff00/mb hold <s>|r - cuanto dura el aviso \"regen\" (0 - 10)")
     print("  |cffffff00/mb sound on/off|r - aviso sonoro al terminar")
     print("  |cffffff00/mb text on/off|r - contador dentro del matraz")
     print("  |cffffff00/mb rate on/off|r - mana por segundo (barra y modo texto)")
@@ -175,6 +176,24 @@ handlers.regen = function(value)
     end
 end
 
+-- El aviso del final de la regla: el matraz lleno con la palabra "regen".
+-- Dura lo que diga esto y despues pasa a marcar el mana que entra, asi que
+-- subirlo alarga el aviso, no la fase de regeneracion.
+handlers.hold = function(value)
+    local seconds = tonumber(value)
+    if not seconds or seconds < 0 or seconds > 10 then
+        MB:Print("uso: /mb hold <0 - 10>")
+        MB:Print("segundos que se queda el aviso |cffffff00regen|r al acabar la regla.")
+        return
+    end
+    MB:GetDB().doneHold = seconds
+    if ns.options then ns.options:Refresh() end
+    MB:Print(("aviso \"regen\": |cff33ff33%.1fs|r"):format(seconds))
+    if seconds == 0 then
+        MB:Print("a 0 el matraz pasa directo a marcar el mana que entra.")
+    end
+end
+
 handlers.sound = function(value)
     Toggle("sound", value, "sonido")
 end
@@ -251,9 +270,10 @@ handlers.status = function()
                 tostring(db.sound), tostring(db.glow)))
     MB:Print(("contador: %s | mana por segundo: %s")
         :format(tostring(db.showText), tostring(db.showRate)))
-    MB:Print(("respaldo: %s | canal: %s | seguir regen: %s")
+    MB:Print(("respaldo: %s | canal: %s | seguir regen: %s | aviso: %.1fs")
         :format(tostring(db.powerFallback), tostring(db.channelRestart),
-                tostring(db.holdRegen)))
+                tostring(db.holdRegen),
+                tonumber(db.doneHold) or MB.defaults.doneHold))
     MB:Print("fase del matraz: " .. tostring(ns.display and ns.display.state))
 
     if MB.costApi then

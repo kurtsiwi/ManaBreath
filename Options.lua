@@ -18,21 +18,21 @@ local format = string.format
 local BOOL, NUMBER, STRING = "boolean", "number", "string"
 
 local STYLE_OPTIONS = {
-    { value = "flask", label = "Matraz animado",
-      tooltip = "El matraz de cristal: el liquido sube durante los 5 segundos, con olas y burbujas." },
-    { value = "text", label = "Solo texto",
-      tooltip = "La cifra, con una etiqueta pequena y el mana por segundo debajo, sin dibujo. No hay halo ni burbujas, y el contador no se puede apagar." },
-    { value = "bar", label = "Barra",
-      tooltip = "Una barra horizontal que se llena durante los 5 segundos, con la cifra encima, y debajo la etiqueta y el mana por segundo. No hay halo ni burbujas." },
+    { value = "flask", label = "Animated flask",
+      tooltip = "The glass flask: the liquid rises over the 5 seconds, with waves and bubbles." },
+    { value = "text", label = "Text only",
+      tooltip = "The figure, with a small label and the mana per second underneath, and no drawing. There is no glow or bubbles, and the counter cannot be turned off." },
+    { value = "bar", label = "Bar",
+      tooltip = "A horizontal bar that fills over the 5 seconds, with the figure on it, and underneath the label and the mana per second. There is no glow or bubbles." },
 }
 
 local GLOW_OPTIONS = {
-    { value = "regen", label = "Al regenerar",
-      tooltip = "Brilla cuando la regla acaba y el mana vuelve a subir." },
-    { value = "rule", label = "Durante la regla",
-      tooltip = "Brilla los 5 segundos en los que el mana NO sube." },
-    { value = "off", label = "Nunca",
-      tooltip = "Sin brillo." },
+    { value = "regen", label = "While regenerating",
+      tooltip = "Glows when the rule ends and mana starts coming back." },
+    { value = "rule", label = "During the rule",
+      tooltip = "Glows for the 5 seconds in which mana does NOT rise." },
+    { value = "off", label = "Never",
+      tooltip = "No glow." },
 }
 
 -- Que hay que hacer cuando cambia cada opcion. Lo que no esta aqui no
@@ -103,14 +103,29 @@ function O:AddButton(label, buttonText, tooltip, onClick)
 end
 
 function O:AddScale()
-    local setting = self:Register("scale", NUMBER, "Escala")
+    local setting = self:Register("scale", NUMBER, "Scale")
     local options = Settings.CreateSliderOptions(0.5, 3, 0.1)
     if options.SetLabelFormatter and MinimalSliderWithSteppersMixin then
         options:SetLabelFormatter(MinimalSliderWithSteppersMixin.Label.Right,
             function(value) return format("%.1f", value) end)
     end
     Settings.CreateSlider(self.category, setting, options,
-        "El matraz mide 58x58 a escala 1. Esta es la forma de agrandarlo sin deformarlo.")
+        "The flask is 58x58 at scale 1. This is the way to make it bigger without deforming it.")
+end
+
+-- El aviso del final de la regla, en segundos. Mismo deslizador que la
+-- escala, con su propio rango: el panel y /mb hold escriben en doneHold.
+function O:AddHold()
+    local setting = self:Register("doneHold", NUMBER, "Time showing \"regen\"")
+    local options = Settings.CreateSliderOptions(0, 10, 0.1)
+    if options.SetLabelFormatter and MinimalSliderWithSteppersMixin then
+        options:SetLabelFormatter(MinimalSliderWithSteppersMixin.Label.Right,
+            function(value) return format("%.1fs", value) end)
+    end
+    Settings.CreateSlider(self.category, setting, options,
+        "How long the word \"regen\" stays on screen when the rule ends, with the "
+        .. "flask full, before it switches to tracking the mana coming in. At 0 it "
+        .. "goes straight to the mana.")
 end
 
 function O:AddChoice(key, label, entries, tooltip)
@@ -137,49 +152,50 @@ local function Build(self)
     self.layout = layout
     self.settings = {}
 
-    self:AddHeader("Aspecto")
-    self:AddChoice("style", "Como se dibuja", STYLE_OPTIONS,
-        "Las tres pieles cuentan lo mismo y detectan igual: solo cambia el dibujo.")
-    self:AddCheckbox("locked", "Fijar el matraz",
-        "Desmarcado, el matraz se puede arrastrar con el boton izquierdo.")
+    self:AddHeader("Appearance")
+    self:AddChoice("style", "How it is drawn", STYLE_OPTIONS,
+        "All three skins count the same and detect the same: only the drawing differs.")
+    self:AddCheckbox("locked", "Pin the flask",
+        "Unticked, the flask can be dragged with the left mouse button.")
     self:AddScale()
-    self:AddCheckbox("showText", "Contador dentro del matraz",
-        "Los segundos que faltan, y el porcentaje de mana durante la regeneracion. "
-        .. "En modo texto no se aplica: ahi la cifra es lo unico que hay.")
-    self:AddCheckbox("showRate", "Mana por segundo",
-        "El mana que entra mientras regeneras, debajo de la cifra. Lo dibujan la "
-        .. "barra y el modo texto; el matraz no tiene sitio para una segunda cifra, "
-        .. "asi que ahi no se ve. Aparece con el segundo tick, que es cuando hay "
-        .. "algo medido.")
-    self:AddCheckbox("alwaysShow", "Mostrar el matraz siempre",
-        "Tambien en reposo. No cuesta nada por frame: el matraz en reposo no se anima.")
+    self:AddCheckbox("showText", "Countdown inside the bulb",
+        "The seconds left, and the mana percentage while regenerating. "
+        .. "It does not apply in text mode: there the figure is the only thing on screen.")
+    self:AddCheckbox("showRate", "Mana per second",
+        "The mana coming in while you regenerate, under the figure. The bar and "
+        .. "text mode draw it; the flask has no room for a second figure, so it is "
+        .. "left out there. It shows up with the second tick, which is when there "
+        .. "is something measured.")
+    self:AddCheckbox("alwaysShow", "Keep the flask always visible",
+        "Idle too. It costs nothing per frame: an idle flask does not animate.")
 
-    self:AddHeader("Avisos")
-    self:AddChoice("glow", "Cuando brilla el matraz", GLOW_OPTIONS,
-        "El brillo alumbra una sola fase, la que elijas: encenderlo en las dos lo "
-        .. "dejaria sin decir nada. En modo texto no hay halo.")
-    self:AddCheckbox("holdRegen", "Seguir el mana que vuelve",
-        "Al acabar la regla el matraz se queda marcando el mana que entra, hasta "
-        .. "que se llene, salgas de combate o vuelvas a gastar mana.")
-    self:AddCheckbox("sound", "Aviso sonoro al terminar la regla")
+    self:AddHeader("Alerts")
+    self:AddChoice("glow", "When the flask glows", GLOW_OPTIONS,
+        "The glow lights exactly one phase, whichever you pick: lighting both "
+        .. "would say nothing. There is no glow in text mode.")
+    self:AddCheckbox("holdRegen", "Track the mana coming back",
+        "When the rule ends the flask goes on tracking the mana coming in, until "
+        .. "it fills up, you leave combat or you spend mana again.")
+    self:AddCheckbox("sound", "Sound alert when the rule ends")
+    self:AddHold()
 
-    self:AddHeader("Deteccion")
-    self:AddCheckbox("powerFallback", "Detectar tambien por bajadas de mana",
-        "Puede dar falsos positivos si algo mas te quita mana.")
-    self:AddCheckbox("channelRestart", "Reiniciar al cortar una canalizacion",
-        "Una canalizacion gasta mana mientras dura, asi que la regla deberia "
-        .. "contar desde el ultimo tick. Si Forever lo cobra todo al empezar, desmarcalo.")
-    self:AddButton("Medir la regla", "Comprobar",
-        "Arma /mb verify: lanza un hechizo que gaste mana y no hagas nada mas. "
-        .. "Mide el mana dentro y fuera de la ventana y dice si la regla existe de verdad.",
+    self:AddHeader("Detection")
+    self:AddCheckbox("powerFallback", "Also detect via mana drops",
+        "This can produce false positives if something else drains your mana.")
+    self:AddCheckbox("channelRestart", "Restart when a channel is cut",
+        "A channel spends mana for as long as it lasts, so the rule should count "
+        .. "from the last tick. If Forever charges it all up front, untick this.")
+    self:AddButton("Measure the rule", "Check",
+        "Arms /mb verify: cast a spell that spends mana and then do nothing else. "
+        .. "It measures mana inside and outside the window and says whether the rule really exists.",
         function()
             if ns.verify then ns.verify:Arm() end
         end)
 
-    self:AddHeader("Diagnostico")
-    self:AddCheckbox("debug", "Imprimir el coste leido de cada casteo")
-    self:AddButton("Opciones", "Restaurar valores",
-        "Vuelve a los valores por defecto, posicion incluida.",
+    self:AddHeader("Diagnostics")
+    self:AddCheckbox("debug", "Print the cost read for every cast")
+    self:AddButton("Options", "Restore defaults",
+        "Goes back to the default values, position included.",
         function() SlashCmdList["MANABREATH"]("reset") end)
 
     Settings.RegisterAddOnCategory(category)

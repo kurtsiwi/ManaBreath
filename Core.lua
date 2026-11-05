@@ -41,6 +41,11 @@ MB.defaults = {
     -- que entra con cada tick, hasta que se llene, salgas de combate o vuelvas
     -- a entrar en la regla.
     holdRegen = true,
+    -- Cuanto se queda en pantalla el aviso del final de la regla (la palabra
+    -- "regen", con el matraz lleno) antes de pasar a marcar el mana que
+    -- entra. Eran 0,7 s fijos, y el aviso pasaba demasiado rapido para
+    -- leerlo. Configurable con /mb hold o desde el panel.
+    doneHold = 3.7,
     alwaysShow = false,
     powerFallback = false,
     channelRestart = true,

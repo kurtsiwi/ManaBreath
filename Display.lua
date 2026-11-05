@@ -22,7 +22,11 @@ local COLOR_IDLE   = { 0.40, 0.40, 0.46 }
 -- Destello de cada tick de mana: el verde de arriba, aclarado.
 local COLOR_TICK   = { 0.72, 1.00, 0.86 }
 
-local HOLD_AFTER_DONE = 0.7
+-- Cuanto dura el aviso del final de la regla. El valor vive en la DB
+-- (doneHold), asi que esto solo acota lo que llegue: un numero raro en
+-- SavedVariables no debe dejar el matraz encendido para siempre ni hacer
+-- desaparecer el aviso.
+local HOLD_MIN, HOLD_MAX = 0, 10
 local FADE_DURATION = 0.5
 
 -- La fase de regeneracion se cierra sola si el mana deja de subir: puede que
@@ -36,7 +40,7 @@ local TICK_FLASH = 0.30
 local FILL_SETTLE = 6.0
 
 local DONE_TEXT = "regen"
-local HINT_TEXT = "arrastrame"
+local HINT_TEXT = "drag me"
 local IDLE_FILL = 0.12
 
 -- Modo texto: sin matraz, solo la cifra y una etiqueta pequena debajo. El
@@ -793,10 +797,15 @@ function D:Start(startedAt, expires)
     self:SetUpdating(true)
 end
 
+local function HoldTime(db)
+    local hold = tonumber(db.doneHold) or MB.defaults.doneHold
+    return max(HOLD_MIN, min(HOLD_MAX, hold))
+end
+
 function D:Finish()
     local db = MB:GetDB()
     self.state = "done"
-    self.holdLeft = HOLD_AFTER_DONE
+    self.holdLeft = HoldTime(db)
     self:SetFill(1)
     self:SetPhaseColor(COLOR_DONE)
     self:SetText(DONE_TEXT, false)

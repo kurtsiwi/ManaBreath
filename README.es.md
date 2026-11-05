@@ -38,7 +38,11 @@ El matraz pasa por dos fases y el color las distingue.
 | Número en el bulbo | Segundos que faltan, con un decimal |
 | Olas y burbujas | La regla está corriendo |
 
-**Verde — estás regenerando.** Empieza en el instante en que la regla acaba.
+**Verde — estás regenerando.** Empieza en el instante en que la regla acaba: el
+matraz se llena y enseña `regen` durante **3,7 segundos**, que es el aviso de
+que el maná vuelve, y solo después pasa a marcar tu maná real. `/mb hold
+<segundos>`, o el deslizador del panel, cambia esa duración; a 0 pasa directo
+al maná.
 
 | | |
 | --- | --- |
@@ -162,6 +166,7 @@ nota en el matraz aunque la regla esté corriendo.
 | `/mb sound on/off` | Una gota de agua al terminar la regla |
 | `/mb glow regen/rule/off` | Cuándo brilla el matraz |
 | `/mb regen on/off` | Seguir el maná que vuelve cuando la regla acaba |
+| `/mb hold <segundos>` | Cuánto dura el aviso `regen`, de 0 a 10 |
 | `/mb text on/off` | Contador dentro del bulbo |
 | `/mb rate on/off` | Maná por segundo, en la barra y en modo texto |
 | `/mb always on/off` | Mantener el matraz siempre visible |

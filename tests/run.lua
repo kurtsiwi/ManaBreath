@@ -29,6 +29,14 @@ check("DB no se crea con otro addon", ManaBreathDB, nil)
 MOCK:fire("ADDON_LOADED", "ManaBreath")
 MOCK:fire("PLAYER_LOGIN")
 check("DB inicializada", type(ManaBreathDB), "table")
+
+-- El aviso del final de la regla es configurable (doneHold), y su valor por
+-- defecto es cosa de gusto: fijarlo aqui evita que cambiarlo mueva veinte
+-- numeros de este archivo. El valor por defecto tiene su propio bloque al
+-- final.
+local TEST_HOLD = 0.7
+local function PinHold() ManaBreathDB.doneHold = TEST_HOLD end
+PinHold()
 check("frame creado", D.frame ~= nil, true)
 check("mascara del matraz creada", D.masked, true)
 check("oculto al inicio", D.frame:IsShown(), false)
@@ -264,6 +272,8 @@ slash("status")
 slash("reset")
 check("reset restaura escala", ManaBreathDB.scale, 1)
 check("reset restaura always", ManaBreathDB.alwaysShow, false)
+check("reset restaura el aviso", ManaBreathDB.doneHold, MB.defaults.doneHold)
+PinHold()
 slash("comando-inexistente")
 slash("")
 
@@ -275,7 +285,7 @@ check("categoria registrada en Ajustes", O.category.registered, true)
 
 local declared = 0
 for _ in pairs(O.settings) do declared = declared + 1 end
-check("opciones declaradas", declared, 12)
+check("opciones declaradas", declared, 13)
 
 -- Lo que importa de la forma moderna del API: el valor no vive en una variable
 -- del sistema, vive en ManaBreathDB. Si no, el panel y /mb serian dos verdades.
@@ -825,6 +835,58 @@ check("y el color de la fase", D.barFill.color[3] > D.barFill.color[2], true)
 MB:Cancel()
 slash("style flask")
 MOCK.mana = 2000
+
+print("\n-- el aviso del final de la regla dura lo que diga doneHold --")
+check("por defecto son 3.7s", MB.defaults.doneHold, 3.7)
+check("el panel lo trae como deslizador", MOCK.settings.MANABREATH_DONEHOLD.control, "slider")
+check("de 0 a 10", MOCK.settings.MANABREATH_DONEHOLD.sliderOptions.max, 10)
+
+ManaBreathDB.doneHold = MB.defaults.doneHold
+MOCK.mana = 2000
+MOCK:fire("UNIT_POWER_UPDATE", "player", "MANA")
+MOCK:fire("UNIT_SPELLCAST_SUCCEEDED", "player", "cast-hold", 100)
+MOCK:advance(5.2)
+check("acabada la regla, el aviso", D.timeText:GetText(), "regen")
+-- Con el aguante viejo de 0,7 s aqui ya estaria marcando el mana: es
+-- exactamente lo que se queria alargar.
+MOCK:advance(3.0)
+check("sigue puesto 3s despues", D.state, "done")
+check("y sigue diciendo regen", D.timeText:GetText(), "regen")
+MOCK:advance(1.0)
+check("pasado el aguante, el mana", D.state, "regen")
+check("marcando el porcentaje", D.timeText:GetText(), "40%")
+MB:Cancel()
+MOCK:advance(1)
+
+-- A 0 el aviso no se queda: el matraz pasa directo a marcar el mana.
+slash("hold 0")
+check("comando a 0", ManaBreathDB.doneHold, 0)
+MOCK:fire("UNIT_SPELLCAST_SUCCEEDED", "player", "cast-hold0", 100)
+MOCK:advance(5.2)
+check("sin aviso, directo al mana", D.state, "regen")
+MB:Cancel()
+MOCK:advance(1)
+
+-- Lo que no es un numero del rango no entra en la DB.
+slash("hold 7.5")
+check("comando dentro del rango", ManaBreathDB.doneHold, 7.5)
+slash("hold 99")
+check("fuera de rango no cambia nada", ManaBreathDB.doneHold, 7.5)
+slash("hold bananas")
+check("ni una palabra", ManaBreathDB.doneHold, 7.5)
+check("el panel se entera", MOCK.settings.MANABREATH_DONEHOLD:GetValue(), 7.5)
+
+-- Y un valor imposible en SavedVariables se acota en vez de dejar el matraz
+-- encendido para siempre.
+ManaBreathDB.doneHold = 500
+MOCK:fire("UNIT_SPELLCAST_SUCCEEDED", "player", "cast-holdmax", 100)
+MOCK:advance(5.2)
+check("a los 5s sigue el aviso", D.state, "done")
+MOCK:advance(10.2)
+check("pero se acota a 10s", D.state, "regen")
+MB:Cancel()
+MOCK:advance(1)
+PinHold()
 
 print("\n-- los .toc no se desincronizan --")
 -- Archivos que solo se diferencian en la linea de interfaz. Cada vez que se
