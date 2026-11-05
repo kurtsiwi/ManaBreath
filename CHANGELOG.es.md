@@ -2,6 +2,48 @@
 
 Traduccion de [CHANGELOG.md](CHANGELOG.md), que es el que se publica.
 
+## 1.6.0
+
+### Colocarlo sin escribir
+
+- Pasar el ratón por encima del matraz saca un **candado** en su esquina
+  superior izquierda. Un clic lo fija o lo suelta, que es lo que hacen
+  `/mb lock` y `/mb unlock` desde siempre — solo que ya no hace falta acordarse
+  del comando para enterarse de que la cosa se puede mover.
+- Suelto, en la esquina contraria aparece un **tirador**. Arrastrarlo en
+  diagonal cambia la escala, entre el mismo 0,5 y 3 que aceptan `/mb scale` y
+  el panel: es otra entrada al mismo ajuste, no un ajuste nuevo.
+- **Ninguno aparece en combate.** Están para colocar el aviso, y en cuanto
+  empieza la pelea el aviso es algo que se lee. Si la pelea empieza con el
+  cursor encima, se apagan solos.
+- El tirador solo existe con el matraz suelto. Cambiarle el tamaño a algo que
+  no se puede mover lo dejaría creciendo desde una esquina que no elegiste.
+- Cambiar la escala ya no mueve el matraz. La x y la y del anclaje se miden en
+  la escala del propio marco, así que los mismos números caen en otro sitio al
+  cambiarla; ahora se compensan donde se aplica la escala, que lo arregla igual
+  para el tirador, para `/mb scale` y para el panel.
+- El matraz acepta el *movimiento* del ratón siempre, para que el candado pueda
+  aparecer también estando fijo, pero solo acepta **clics** estando suelto.
+  Fijo, ya no se interpone entre vos y lo que haya detrás.
+- La palabra del bulbo se centra por su tinta, no por su caja. La caja de un
+  texto va de la cabeza de las letras altas a la cola de las que bajan, y
+  `regen` no tiene ninguna letra alta y sí la cola de la «g»: centrar la caja
+  dejaba la palabra baja dentro del matraz. Ahora se sube lo que mide ese
+  desajuste. La cuenta atrás no se toca: las cifras no bajan de la línea, y su
+  sesgo es el contrario.
+- **`/mb version`** imprime la versión que el cliente tiene cargada de verdad.
+  El índice de addons se arma al arrancar, así que cambiar los archivos con el
+  juego abierto no la mueve hasta recargar: eso es lo que le deja responder
+  «¿entró la copia que acabo de hacer?», que comparar archivos en disco no
+  puede. `/mb status` lleva la misma línea.
+- El matraz ahora se apaga **entero**. El fundido baja el alfa del marco, que
+  heredan todas las piezas que cuelgan de él — pero el halo seguía latiendo su
+  propio alfa y cada burbuja seguía con su entrada y su salida, y esos se
+  multiplican con el del marco. Cada pieza se apagaba por su cuenta, así que
+  el matraz se deshacía por capas en vez de irse entero. Los dos quedan
+  congelados durante el medio segundo que dura el fundido, que es continuo y
+  no da ningún salto; lo que se mueve sigue moviéndose.
+
 ## 1.5.0
 
 ### El matraz vuelve a seguir tu maná

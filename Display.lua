@@ -90,6 +90,24 @@ local BAR_MIN_ASPECT = 3.2
 -- bajar hasta 6 px, donde la etiqueta saldria a 1 px, o sea a nada.
 local MIN_FONT = 6
 
+-- Controles que solo existen con el raton encima. No son parte del aviso:
+-- viven fuera del ciclo, no se dibujan en combate y no cuestan nada por frame
+-- mientras no se vean.
+-- El candado va en la esquina superior izquierda, que es la que el matraz
+-- deja libre, y de ahi salen su lado y su margen: el bulbo esta centrado y
+-- abajo, asi que un icono mas grande o mas adentro le pisa el arco. Con 0.32
+-- y pegado a la esquina, su vertice queda justo fuera del cristal.
+local HOVER_ICON = 0.32   -- lado del candado, en fracciones del alto del marco
+local HOVER_GRIP = 0.30   -- lado del tirador de la esquina
+local HOVER_PAD  = 0.0    -- cuanto se separan del borde
+local HOVER_MIN  = 10     -- lado minimo en pixeles: mas chico no se acierta
+-- Limites de la escala. Son los mismos que acepta `/mb scale` y el panel: el
+-- tirador es otra forma de mover el mismo ajuste, no un ajuste aparte.
+local SCALE_MIN, SCALE_MAX = 0.5, 3
+-- Cuanto cambia la escala por pixel arrastrado en diagonal. Recorrer de punta
+-- a punta son unos 400 px, que es un gesto largo pero no interminable.
+local SCALE_PER_PX = 0.006
+
 local COLOR_TRACK  = { 0.07, 0.07, 0.09 }
 local COLOR_BORDER = { 0.00, 0.00, 0.00 }
 
@@ -109,6 +127,13 @@ local WIDEST_RATE = { string.format(RATE_FORMAT, 1888.8) }
 local FILL_BOTTOM = 0.040   -- fondo interior del bulbo
 local FILL_TOP    = 0.660   -- hasta donde sube el liquido estando lleno
 local BULB_CENTER = 0.345   -- centro del bulbo, para centrar el contador
+-- La caja de un texto va de la cabeza de las letras altas a la cola de las
+-- que bajan, asi que su centro no es el centro de lo que se ve. `regen` no
+-- tiene ninguna letra alta y si la cola de la "g": su tinta se apoya en la
+-- mitad baja de la caja, y centrar la caja deja la palabra baja en el bulbo.
+-- Se sube lo que mide ese desajuste, proporcional al cuerpo de letra. Las
+-- cifras no pasan por aqui: no bajan de la linea y su sesgo es el contrario.
+local WORD_RISE = 0.125
 local WAVE_H      = 0.16    -- alto de la banda de ola
 local WAVE_SPAN   = 1.6     -- repeticiones de la banda de lado a lado
 local GLOW_SCALE  = 0.74    -- el halo se dibuja a 1/GLOW_SCALE del marco
@@ -296,6 +321,44 @@ function D:Init()
     hint:SetText(HINT_TEXT)
     hint:Hide()
 
+    -- Los dos controles del raton son marcos hijos a proposito, que es lo
+    -- unico que los deja por encima del cristal y de la cifra: un marco hijo
+    -- dibuja sobre todo lo que cuelga del padre. Es la misma regla que al
+    -- StatusBar le juega en contra y que aqui hace justo falta.
+    local lockBtn = CreateFrame("Button", nil, f)
+    lockBtn:RegisterForClicks("LeftButtonUp")
+    lockBtn:Hide()
+    local lockIcon = lockBtn:CreateTexture(nil, "ARTWORK")
+    lockIcon:SetAllPoints(lockBtn)
+
+    local grip = CreateFrame("Button", nil, f)
+    grip:RegisterForClicks("LeftButtonDown", "LeftButtonUp")
+    grip:Hide()
+    local gripIcon = grip:CreateTexture(nil, "ARTWORK")
+    gripIcon:SetTexture(ART .. "Grip")
+    gripIcon:SetAllPoints(grip)
+
+    -- Entrar o salir de cualquiera de las tres piezas recalcula lo mismo: el
+    -- raton pasando a un hijo saca un OnLeave del padre, asi que lo que manda
+    -- no es que evento llego sino si el cursor sigue dentro del marco.
+    local function hoverIn() D:SetHover(true) end
+    local function hoverOut() D:SetHover(f:IsMouseOver()) end
+    for _, piece in ipairs({ f, lockBtn, grip }) do
+        piece:SetScript("OnEnter", hoverIn)
+        piece:SetScript("OnLeave", hoverOut)
+    end
+
+    lockBtn:SetScript("OnClick", function()
+        local db = MB:GetDB()
+        db.locked = not db.locked
+        D:ApplySettings()
+        MB:Print(db.locked and "pinned" or "released: drag it, or drag the corner to resize")
+    end)
+
+    grip:SetScript("OnMouseDown", function() D:BeginScale() end)
+    grip:SetScript("OnMouseUp", function() D:EndScale() end)
+    grip:SetScript("OnUpdate", function() D:DragScale() end)
+
     f:SetScript("OnDragStart", function(self)
         if not MB:GetDB().locked then
             self:StartMoving()
@@ -330,6 +393,9 @@ function D:Init()
     self.label = label
     self.rateText = rateText
     self.hint = hint
+    self.lockBtn = lockBtn
+    self.lockIcon = lockIcon
+    self.grip = grip
     self.waveOffset1 = 0
     self.waveOffset2 = 0
     self.animElapsed = 0
@@ -345,6 +411,103 @@ function D:SavePosition()
     local db = MB:GetDB()
     local point, _, relPoint, x, y = self.frame:GetPoint()
     db.point, db.relPoint, db.x, db.y = point, relPoint, x, y
+end
+
+-- ---------------------------------------------------------------------
+-- Controles del raton: el candado y el tirador de la esquina.
+--
+-- Los dos son del mismo tipo de pieza: no dicen nada sobre el mana, solo
+-- sirven para colocar el aviso. De ahi que no aparezcan en combate, que es
+-- cuando el matraz es informacion y no un mueble.
+-- ---------------------------------------------------------------------
+
+-- El tamano sale del alto del marco, como todo lo demas, con un suelo en
+-- pixeles: a escala 0.5 un icono proporcional seria inpinchable.
+function D:LayoutHover()
+    local f = self.frame
+    -- El alto se le pregunta al marco y no a self.height, que solo lo escribe
+    -- la piel del matraz: en las otras dos quedaria el de la vez anterior.
+    local h = f:GetHeight() or 0
+    if h <= 0 then return end
+
+    local pad = HOVER_PAD * h
+    local icon = max(HOVER_MIN, HOVER_ICON * h)
+    local gripSide = max(HOVER_MIN, HOVER_GRIP * h)
+
+    self.lockBtn:SetSize(icon, icon)
+    self.lockBtn:ClearAllPoints()
+    self.lockBtn:SetPoint("TOPLEFT", f, "TOPLEFT", pad, -pad)
+
+    self.grip:SetSize(gripSide, gripSide)
+    self.grip:ClearAllPoints()
+    self.grip:SetPoint("BOTTOMRIGHT", f, "BOTTOMRIGHT", -pad, pad)
+end
+
+-- El raton entro o salio. En combate no hay controles: entrar no los
+-- enciende, y empezar la pelea con el cursor encima los apaga.
+function D:SetHover(on)
+    if not self.frame then return end
+    if on and InCombatLockdown and InCombatLockdown() then on = false end
+    if self.hovering == on then return end
+    self.hovering = on
+    self:UpdateHover()
+end
+
+function D:UpdateHover()
+    if not self.frame then return end
+    local db = MB:GetDB()
+    -- Arrastrando el tirador el cursor se va del marco a los dos pixeles:
+    -- soltar los controles a mitad del gesto seria perder el gesto.
+    local on = (self.hovering or self.scaling) and self.frame:IsShown()
+
+    self.lockBtn:SetShown(on)
+    -- El tirador solo con el matraz suelto: cambiarle el tamano a algo que no
+    -- se puede mover lo deja creciendo desde donde no lo pusiste.
+    self.grip:SetShown(on and not db.locked)
+    if on then
+        self.lockIcon:SetTexture(ART .. (db.locked and "Lock" or "Unlock"))
+    end
+end
+
+function D:BeginScale()
+    if MB:GetDB().locked then return end
+    local x, y = GetCursorPosition()
+    local ui = UIParent:GetEffectiveScale()
+    if not (x and y and ui and ui > 0) then return end
+    self.scaling = true
+    self.scaleFrom = MB:GetDB().scale
+    self.scaleX, self.scaleY = x / ui, y / ui
+end
+
+function D:EndScale()
+    if not self.scaling then return end
+    self.scaling = false
+    -- Al soltar, el cursor puede haber quedado fuera: que los controles sigan
+    -- o no depende de donde esta, no de donde empezo el gesto.
+    self:SetHover(self.frame:IsMouseOver())
+    self:UpdateHover()
+end
+
+-- Un gesto en diagonal hacia abajo y a la derecha agranda. Se suman los dos
+-- ejes en vez de medir la distancia a la esquina: asi el tiron tira igual
+-- aunque se salga de la diagonal, que es lo que hace la mano.
+function D:DragScale()
+    if not self.scaling then return end
+    local x, y = GetCursorPosition()
+    local ui = UIParent:GetEffectiveScale()
+    if not (x and y and ui and ui > 0) then return end
+
+    local delta = (x / ui - self.scaleX) + (self.scaleY - y / ui)
+    local scale = self.scaleFrom + delta * SCALE_PER_PX
+    scale = max(SCALE_MIN, min(SCALE_MAX, scale))
+    -- Al centesimo: el arrastre da decimales infinitos y guardarlos llenaria
+    -- la DB de ruido que nadie puede volver a escribir a mano.
+    scale = floor(scale * 100 + 0.5) / 100
+
+    local db = MB:GetDB()
+    if scale == db.scale then return end
+    db.scale = scale
+    self:ApplySettings()
 end
 
 -- Todo lo que depende del tamano del marco se calcula aqui, no por frame.
@@ -531,17 +694,38 @@ function D:ApplySettings()
     if not self.frame then return end
     local db = MB:GetDB()
 
+    -- La escala no solo agranda el marco: tambien es la unidad en la que se
+    -- miden x e y, asi que el mismo anclaje con otra escala cae en otro sitio
+    -- de la pantalla. Se compensa aqui y no en quien la cambia, y asi vale
+    -- igual para el tirador, para `/mb scale` y para el panel.
+    if self.appliedScale and self.appliedScale ~= db.scale and db.scale > 0 then
+        local k = self.appliedScale / db.scale
+        db.x, db.y = db.x * k, db.y * k
+    end
+    self.appliedScale = db.scale
+
     self.frame:SetSize(db.width, db.height)
     self.frame:SetScale(db.scale)
     self.frame:ClearAllPoints()
     self.frame:SetPoint(db.point, UIParent, db.relPoint, db.x, db.y)
-    self.frame:EnableMouse(not db.locked)
+    -- El raton por encima tiene que llegar siempre, o el candado no podria
+    -- aparecer estando bloqueado; los clics, solo con el matraz suelto, o se
+    -- comeria los del mundo que hay detras. Separar las dos cosas es de
+    -- Midnight: donde no esten, bloqueado no hay raton y manda `/mb unlock`.
+    if self.frame.SetMouseMotionEnabled and self.frame.SetMouseClickEnabled then
+        self.frame:SetMouseMotionEnabled(true)
+        self.frame:SetMouseClickEnabled(not db.locked)
+    else
+        self.frame:EnableMouse(not db.locked)
+    end
 
     self:ApplyStyle()
     self:Layout()
+    self:LayoutHover()
 
     self.dragArea:SetShown(not db.locked)
     self.hint:SetShown(not db.locked)
+    self:UpdateHover()
     -- En modo texto la cifra ES el aviso: apagarla no dejaria nada en
     -- pantalla, asi que showText solo manda sobre el contador del matraz.
     self.timeText:SetShown(self.textMode or db.showText)
@@ -625,12 +809,22 @@ function D:ApplyStyle()
     self:SetPhaseColor(self:PhaseColor())
 end
 
+-- Altura del texto dentro del bulbo. Ver WORD_RISE.
+function D:CenterBulbText(big, size)
+    self.timeText:ClearAllPoints()
+    self.timeText:SetPoint("CENTER", self.frame, "BOTTOM", 0,
+        BULB_CENTER * (self.height or 0) + (big and 0 or WORD_RISE * size))
+end
+
 function D:SetText(text, big)
     if self.flaskMode then
         local size = big and self.digitSize or self.wordSize
         if size ~= self.textSize then
             self.textSize = size
             SetFontSize(self.timeText, size, "OUTLINE")
+            -- Cambiar de cuerpo es cambiar entre la cifra y la palabra, que
+            -- es justo cuando hay que volver a decidir la altura.
+            self:CenterBulbText(big, size)
         end
     else
         -- Un solo cuerpo de letra para la cifra y para la palabra: si midieran
@@ -979,6 +1173,12 @@ function D:UpdateShown()
     end
 
     self.frame:SetShown(show)
+    if not show and self.hovering then
+        -- Apagado con el cursor encima: al volver a encenderse no hay OnEnter
+        -- nuevo, asi que los controles saldrian solos sin que nadie apunte.
+        self.hovering = false
+        self:UpdateHover()
+    end
 end
 
 function D:SetUpdating(enabled)
@@ -1180,7 +1380,7 @@ function D:Reset()
     self:UpdateShown()
 end
 
-function D:UpdateBubbles(now)
+function D:UpdateBubbles(now, fading)
     local surface = self.bottomPx + self.fill * self.spanPx
     local travel = surface - self.bottomPx
     if travel <= 2 then
@@ -1221,7 +1421,9 @@ function D:UpdateBubbles(now)
             fade = (1 - t) / 0.18
         end
         local alpha = 0.55 * fade
-        if alpha ~= alphas[i] then
+        -- Durante el fundido la burbuja se sigue moviendo pero no toca su
+        -- alfa: ver Animate.
+        if not fading and alpha ~= alphas[i] then
             alphas[i] = alpha
             tex:SetAlpha(alpha)
         end
@@ -1232,7 +1434,15 @@ end
 -- transcurrido desde el paso anterior, no ANIM_STEP: asi la ola avanza lo
 -- mismo sea cual sea la tasa de frames.
 function D:Animate(now, step)
-    if self.glowing then
+    -- Apagandose no manda nadie mas que el alfa del marco, que baja parejo
+    -- para todo lo que cuelga de el. Si el halo sigue latiendo y cada burbuja
+    -- sigue su propia entrada y salida, esos alfas se multiplican con el del
+    -- marco y cada pieza se apaga por su cuenta: el matraz se deshace por
+    -- capas en vez de irse entero. Se congelan donde esten, que es continuo
+    -- y no da ningun salto; lo que se mueve sigue moviendose.
+    local fading = self.state == "fading"
+
+    if self.glowing and not fading then
         -- Latido lento. abs(sin) sube y baja mas rapido que un seno pelado,
         -- que es lo que se quiere de un brillo.
         self.glow:SetAlpha(0.5 + 0.5 * abs(sin(now * 3.0)))
@@ -1243,7 +1453,7 @@ function D:Animate(now, step)
         self.waveOffset2 = (self.waveOffset2 + WAVE_SPEED_2 * step) % 1
         self.wave1:SetTexCoord(self.waveOffset1, self.waveOffset1 + WAVE_SPAN, 0, 1)
         self.wave2:SetTexCoord(self.waveOffset2, self.waveOffset2 + WAVE_SPAN * 0.7, 0, 1)
-        self:UpdateBubbles(now)
+        self:UpdateBubbles(now, fading)
     end
 end
 

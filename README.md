@@ -55,6 +55,13 @@ nothing left to count. To position it:
 /mb lock       pin it in place
 ```
 
+Or do it without typing: hover the flask and a padlock appears in its corner.
+Click it to pin or release. Released, a grip shows up in the opposite corner —
+drag it diagonally to resize, which is the same setting `/mb scale` writes.
+
+Neither one appears in combat. They are there to place the flask, and in a
+fight the flask is something you read, not furniture you arrange.
+
 ### What the flask shows
 
 The flask goes through two phases, and the colour tells them apart.
@@ -191,6 +198,7 @@ flask even mid-rule.
 | Command | What it does |
 | --- | --- |
 | `/mb config` | Open the options panel |
+| `/mb version` | Which version is actually loaded, not the one on disk |
 | `/mb lock` / `/mb unlock` | Pin or release the flask |
 | `/mb test` | 5-second demo |
 | `/mb style flask/text/bar` | Animated flask, text only, or a bar |

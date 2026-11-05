@@ -313,6 +313,11 @@ function Frame:GetStringWidth()
     return #(self.text or "") * (self.fontSize or 10) * 0.6
 end
 function Frame:CreateTexture() return newFrame("Texture") end
+-- La ruta de la textura se guarda para poder leerla: es como los tests
+-- distinguen el candado cerrado del abierto, que es la unica diferencia
+-- visible entre los dos estados.
+function Frame:SetTexture(path) self.texture = path end
+function Frame:GetTexture() return rawget(self, "texture") end
 -- Nivel de marco y capa de dibujo. El juego ordena por nivel primero y por
 -- capa despues, asi que un hijo con nivel propio tapa al padre entero: lo que
 -- el addon tiene que igualar para que el cristal y la palabra sigan arriba.
@@ -335,6 +340,13 @@ end
 function Frame:CreateMaskTexture() return newFrame("MaskTexture") end
 function Frame:CreateFontString() return newFrame("FontString") end
 function Frame:EnableMouse(v) self.mouse = v end
+-- Midnight separa el raton en dos: el movimiento, que es lo que hace falta
+-- para que el candado aparezca bloqueado, y los clics, que el matraz solo se
+-- queda cuando se puede mover.
+function Frame:SetMouseMotionEnabled(v) self.mouseMotion = not not v end
+function Frame:SetMouseClickEnabled(v) self.mouseClick = not not v end
+function Frame:IsMouseOver() return rawget(self, "mouseOver") == true end
+function Frame:RegisterForClicks() end
 
 function CreateFrame(kind, name, parent, template)
     local f = newFrame(kind, name)
@@ -347,6 +359,26 @@ function CreateFrame(kind, name, parent, template)
 end
 
 UIParent = newFrame("Frame", "UIParent")
+-- La escala efectiva de UIParent convierte las coordenadas del cursor a las
+-- del interfaz. 1 deja las dos iguales, que es lo que simplifica las cuentas
+-- del tirador de escala en los tests.
+function UIParent:GetEffectiveScale() return M.uiScale or 1 end
+
+-- Combate y cursor, los dos que mandan sobre los controles del raton.
+M.inCombat = false
+M.cursor = { x = 0, y = 0 }
+function InCombatLockdown() return M.inCombat end
+
+-- Metadatos del addon. El valor es un centinela y no la version real del
+-- .toc: lo que el test comprueba es que /mb version lea de aqui, no que
+-- coincida consigo mismo.
+M.addonVersion = "9.9.9-test"
+C_AddOns = {
+    GetAddOnMetadata = function(_, key)
+        if key == "Version" then return M.addonVersion end
+    end,
+}
+function GetCursorPosition() return M.cursor.x, M.cursor.y end
 
 -- Utilidades del arnes
 function M:fire(event, ...)

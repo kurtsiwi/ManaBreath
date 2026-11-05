@@ -206,7 +206,10 @@ check("alias /mb", SLASH_MANABREATH2, "/mb")
 slash("unlock")
 check("desbloqueada", ManaBreathDB.locked, false)
 check("visible al desbloquear", D.frame:IsShown(), true)
-check("mouse activo", D.frame.mouse, true)
+check("acepta clics al desbloquear", D.frame.mouseClick, true)
+-- El movimiento va siempre: es lo que deja que el candado aparezca tambien
+-- con el matraz bloqueado, sin comerse los clics del mundo que hay detras.
+check("y el raton por encima siempre", D.frame.mouseMotion, true)
 slash("lock")
 check("bloqueada", ManaBreathDB.locked, true)
 check("oculta al bloquear", D.frame:IsShown(), false)
@@ -1030,6 +1033,179 @@ check("y su porcentaje", D.timeText:GetText(), "40%")
 MB:Cancel()
 MOCK:advance(5)
 MOCK.mana = realMana150
+
+print("\n-- apagandose, el matraz se va entero --")
+slash("style flask")
+slash("glow regen")
+MOCK:fire("UNIT_SPELLCAST_SUCCEEDED", "player", "cast-fade", 100)
+MOCK:advance(5.9)
+check("el halo esta encendido", D.glow:IsShown(), true)
+check("y la fase verde abierta", D.state, "regen")
+-- Salir de combate cierra la fase y arranca el fundido de siempre.
+D:EndRegen()
+MOCK:advance(0.05)
+check("y el matraz apagandose", D.state, "fading")
+
+-- El alfa del marco baja; el de las piezas no se mueve. Si cada una siguiera
+-- con su propio latido o su propia entrada, se apagarian a ritmos distintos.
+local frameA1 = D.frame:GetAlpha()
+local glowA1 = D.glow.alpha
+MOCK:advance(0.4)
+check("sigue apagandose", D.state, "fading")
+check("el marco baja su alfa", D.frame:GetAlpha() < frameA1, true)
+check("el halo no mueve el suyo", D.glow.alpha, glowA1)
+
+-- La burbuja lleva la misma guarda, pero se comprueba directa: en el medio
+-- segundo que dura el fundido puede que ninguna llegue a cruzar su rampa de
+-- entrada o de salida, y entonces el alfa no cambiaria ni con el arreglo ni
+-- sin el. Un test que no puede fallar no prueba nada.
+local bub = D.bubbles[1]
+bub:SetAlpha(-1)
+D.bubbleAlpha[1] = -1
+D:UpdateBubbles(GetTime(), true)
+check("apagandose, la burbuja no escribe su alfa", bub.alpha, -1)
+D:UpdateBubbles(GetTime(), false)
+check("y fuera del fundido si", bub.alpha ~= -1, true)
+MOCK:advance(1)
+slash("style flask")
+
+print("\n-- /mb version dice lo que esta cargado --")
+-- La captura de MB:Print se apaga al final de cada bloque que la usa, asi que
+-- hay que volver a encenderla aqui.
+MB.Print = function(self, ...)
+    local parts = {}
+    for i = 1, select("#", ...) do parts[i] = tostring((select(i, ...))) end
+    said[#said + 1] = table.concat(parts, " ")
+end
+said = {}
+slash("version")
+check("imprime la version del cliente", saidMatch("9.9.9-test"), true)
+-- Lo que importa es de donde la saca: del indice de addons, que se arma al
+-- arrancar, y no del .toc en disco. Por eso distingue una copia que entro de
+-- una que esta en la carpeta esperando un /reload.
+check("y aclara que es la cargada", saidMatch("loaded, not the file on disk"), true)
+said = {}
+slash("status")
+check("status tambien la lleva", saidMatch("version: 9.9.9-test"), true)
+said = {}
+MB.Print = realPrint
+
+print("\n-- la palabra se centra por su tinta, no por su caja --")
+slash("style flask")
+MOCK:fire("UNIT_SPELLCAST_SUCCEEDED", "player", "cast-center", 100)
+MOCK:advance(1.0)
+check("contando, con cifra", D.timeText:GetText(), "4.0")
+local digitY = D.timeText.y
+MOCK:advance(4.5)
+check("y ahora la palabra", D.timeText:GetText(), "regen")
+local wordY = D.timeText.y
+-- La cifra no baja de la linea y la palabra si: centradas por la caja, la
+-- palabra cae mas baja de lo que se ve. Por eso se la sube.
+check("la palabra va mas arriba que la cifra", wordY > digitY, true)
+MB:Cancel()
+MOCK:advance(5)
+
+print("\n-- controles del raton: candado y tirador --")
+slash("always on")
+slash("lock")
+MOCK.inCombat = false
+D:SetHover(false)
+check("en reposo no hay candado", D.lockBtn:IsShown(), false)
+
+-- Bloqueado el raton por encima llega igual, y el candado es la unica forma
+-- de soltarlo sin escribir un comando.
+D:SetHover(true)
+check("el raton saca el candado", D.lockBtn:IsShown(), true)
+check("bloqueado no hay tirador", D.grip:IsShown(), false)
+check("y el icono es el cerrado", D.lockIcon.texture:match("Lock$") ~= nil, true)
+
+-- Un clic en el candado suelta el matraz, igual que /mb unlock.
+D.lockBtn:GetScript("OnClick")()
+check("el clic lo suelta", ManaBreathDB.locked, false)
+check("ahora si hay tirador", D.grip:IsShown(), true)
+check("y el icono es el abierto", D.lockIcon.texture:match("Unlock$") ~= nil, true)
+
+-- En combate los controles no existen: el matraz pasa a ser informacion.
+MOCK.inCombat = true
+D:SetHover(false)
+D:SetHover(true)
+check("en combate no hay candado", D.lockBtn:IsShown(), false)
+check("ni tirador", D.grip:IsShown(), false)
+MOCK.inCombat = false
+D:SetHover(true)
+check("al salir vuelven", D.lockBtn:IsShown(), true)
+
+-- El tirador arrastra la escala. El mock deja la escala de UIParent en 1, asi
+-- que un pixel de cursor es un pixel de interfaz.
+slash("scale 1")
+MOCK.cursor.x, MOCK.cursor.y = 500, 500
+D:BeginScale()
+check("arrastrando", D.scaling, true)
+-- 100 px a la derecha y 100 hacia abajo: 200 px de gesto a 0.006 por pixel.
+MOCK.cursor.x, MOCK.cursor.y = 600, 400
+D:DragScale()
+check("la escala sube con el gesto", ManaBreathDB.scale, 2.2)
+-- Y no se pasa de los limites que acepta /mb scale.
+MOCK.cursor.x, MOCK.cursor.y = 5000, -5000
+D:DragScale()
+check("sin pasarse del maximo", ManaBreathDB.scale, 3)
+MOCK.cursor.x, MOCK.cursor.y = -5000, 5000
+D:DragScale()
+check("ni del minimo", ManaBreathDB.scale, 0.5)
+D:EndScale()
+check("se solto", D.scaling, false)
+
+-- Cambiar la escala no tiene que mover el matraz de sitio: x e y se miden en
+-- la escala del propio marco, asi que hay que compensarlos.
+slash("scale 1")
+ManaBreathDB.x, ManaBreathDB.y = 100, -200
+D:ApplySettings()
+slash("scale 2")
+check("la x se compensa", ManaBreathDB.x, 50)
+check("y la y tambien", ManaBreathDB.y, -100)
+slash("scale 1")
+check("y vuelve al compensar de nuevo", ManaBreathDB.x, 100)
+
+-- Bloquear con el cursor encima apaga el tirador, no solo lo esconde.
+slash("unlock")
+D:SetHover(true)
+check("suelto hay tirador", D.grip:IsShown(), true)
+slash("lock")
+check("al bloquear desaparece", D.grip:IsShown(), false)
+-- El caso de verdad: fuera de combate gastas mana, el matraz aparece por si
+-- solo, y lo acomodas mientras lo estas viendo. Todo el ciclo sigue corriendo
+-- por debajo; los controles no lo tocan.
+MOCK.inCombat = false
+slash("lock")
+D:SetHover(false)
+MOCK:fire("UNIT_SPELLCAST_SUCCEEDED", "player", "cast-place", 100)
+MOCK:advance(1.0)
+check("el matraz esta en su ciclo", D.state, "active")
+check("y visible sin always on", D.frame:IsShown(), true)
+
+D:SetHover(true)
+check("se puede soltar en pleno ciclo", D.lockBtn:IsShown(), true)
+D.lockBtn:GetScript("OnClick")()
+check("y queda suelto", ManaBreathDB.locked, false)
+check("con su tirador", D.grip:IsShown(), true)
+
+slash("scale 1")
+MOCK.cursor.x, MOCK.cursor.y = 300, 300
+D:BeginScale()
+MOCK.cursor.x, MOCK.cursor.y = 350, 300
+D:DragScale()
+D:EndScale()
+check("la escala cambia sin cortar el ciclo", ManaBreathDB.scale, 1.3)
+check("y el ciclo sigue donde estaba", D.state, "active")
+MOCK:advance(4.5)
+check("y termina como siempre", D.state, "done")
+slash("lock")
+MB:Cancel()
+MOCK:advance(5)
+
+slash("always off")
+MB:Cancel()
+MOCK:advance(5)
 
 print("\n-- los .toc no se desincronizan --")
 -- Archivos que solo se diferencian en la linea de interfaz. Cada vez que se

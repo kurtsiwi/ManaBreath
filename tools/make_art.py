@@ -16,6 +16,9 @@ Salida en Art/:
     FlaskGlow.tga     halo del brillo de regeneracion
     BarFill.tga       relleno de la barra, tambien tenido desde Lua
     BarSpark.tga      destello del borde de avance de la barra
+    Lock.tga          candado cerrado, para el boton del raton por encima
+    Unlock.tga        el mismo candado abierto
+    Grip.tga          tirador de la esquina, para arrastrar la escala
     Icon.tga          icono para la lista de addons
 
 Y dos PNG que no se empaquetan:
@@ -79,6 +82,15 @@ def smin(a, b, k):
 
 def sd_circle(x, y, cx, cy, r):
     return math.hypot(x - cx, y - cy) - r
+
+
+def sd_segment(x, y, ax, ay, bx, by):
+    """Distancia a un segmento. La usan el arco del candado y las rayas del
+    tirador, que son lo unico del arte que no sale de circulos y cajas."""
+    pax, pay = x - ax, y - ay
+    bax, bay = bx - ax, by - ay
+    h = clamp((pax * bax + pay * bay) / (bax * bax + bay * bay))
+    return math.hypot(pax - bax * h, pay - bay * h)
 
 
 def sd_round_box(x, y, cx, cy, hw, hh, r):
@@ -372,6 +384,85 @@ def render_bubble(size):
             c.over(i, C_WHITE, rim * 0.80)
             dot = sd_circle(x, y, 0.385, 0.375, 0.085)
             c.over(i, C_WHITE, clamp(0.5 - dot / aa) * 0.85)
+    return c.downsample(SS)
+
+
+def render_lock(size, closed):
+    """Candado para el boton que aparece al pasar el raton: cuerpo redondeado,
+    arco y bocallave. Blanco, como el resto de piezas que Lua tine.
+
+    `closed` baja el arco hasta el cuerpo y centra el conjunto; abierto, el
+    arco se levanta y gira sobre la pata izquierda, que es la lectura que se
+    entiende sin leyenda a 16 pixeles."""
+    n = size * SS
+    aa = 1.6 / n
+    c = Canvas(n, n, C_WHITE)
+
+    body_cy, body_hh = 0.700, 0.205
+    body_top = body_cy - body_hh
+    ring_r, arm = 0.175, 0.052
+    ring_cx, ring_cy = (0.500, 0.455) if closed else (0.585, 0.330)
+    # La pata derecha es la que se suelta: cerrada baja hasta el cuerpo y
+    # abierta no existe. El arco ademas sube al abrirse, porque a 16 pixeles
+    # un hueco pequeno no se ve y los dos iconos tienen que distinguirse de
+    # un vistazo.
+
+    for py in range(n):
+        y = (py + 0.5) / n
+        for px in range(n):
+            x = (px + 0.5) / n
+            i = py * n + px
+
+            body = sd_round_box(x, y, 0.500, body_cy, 0.295, body_hh, 0.070)
+
+            # Arco: media circunferencia por arriba del centro, y dos patas
+            # rectas que bajan desde sus extremos.
+            if y <= ring_cy:
+                shackle = abs(math.hypot(x - ring_cx, y - ring_cy) - ring_r)
+            else:
+                shackle = 1.0
+            shackle = min(shackle, sd_segment(x, y, ring_cx - ring_r, ring_cy,
+                                              ring_cx - ring_r, body_top))
+            if closed:
+                shackle = min(shackle,
+                              sd_segment(x, y, ring_cx + ring_r, ring_cy,
+                                         ring_cx + ring_r, body_top))
+            shackle -= arm * 0.5
+
+            d = min(body, shackle)
+            c.over(i, C_WHITE, clamp(0.5 - d / aa))
+
+            # Bocallave: se perfora con un circulo y una ranura que baja. Va
+            # en negro con alfa cero, que es como se recorta sobre el cuerpo.
+            hole = sd_circle(x, y, 0.500, body_cy - 0.045, 0.072)
+            hole = min(hole, sd_round_box(x, y, 0.500, body_cy + 0.055,
+                                          0.030, 0.075, 0.025))
+            cut = clamp(0.5 - hole / aa)
+            if cut > 0.0:
+                c.px[i][3] = c.px[i][3] * (1.0 - cut)
+
+    return c.downsample(SS)
+
+
+def render_grip(size):
+    """Tirador de la esquina: tres rayas en diagonal. Es el idioma que usa el
+    juego para 'arrastra aqui para cambiar el tamano', y a este cuerpo se lee
+    mejor que un triangulo macizo."""
+    n = size * SS
+    aa = 1.5 / n
+    c = Canvas(n, n, C_WHITE)
+    # Cada raya es perpendicular a la diagonal de la esquina. La de afuera es
+    # la mas larga: juntas dibujan el triangulo sin rellenarlo.
+    lines = ((0.26, 0.96, 0.96, 0.26),
+             (0.50, 0.96, 0.96, 0.50),
+             (0.74, 0.96, 0.96, 0.74))
+    for py in range(n):
+        y = (py + 0.5) / n
+        for px in range(n):
+            x = (px + 0.5) / n
+            i = py * n + px
+            d = min(sd_segment(x, y, *ln) for ln in lines) - 0.055
+            c.over(i, C_WHITE, clamp(0.5 - d / aa))
     return c.downsample(SS)
 
 
@@ -717,6 +808,9 @@ def main():
     write_tga(os.path.join(ART, "FlaskBubble.tga"), bubble)
     write_tga(os.path.join(ART, "BarFill.tga"), bar_fill)
     write_tga(os.path.join(ART, "BarSpark.tga"), bar_spark)
+    write_tga(os.path.join(ART, "Lock.tga"), render_lock(32, True))
+    write_tga(os.path.join(ART, "Unlock.tga"), render_lock(32, False))
+    write_tga(os.path.join(ART, "Grip.tga"), render_grip(32))
     write_tga(os.path.join(ART, "Icon.tga"),
               compose_flask(128, 0.70, (0.26, 0.52, 0.98), glass, mask, liquid,
                             wave, None, 0.3))

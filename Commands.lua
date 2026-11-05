@@ -22,7 +22,9 @@ end
 local function Help()
     MB:Print("commands:")
     print("  |cffffff00/mb config|r - open the options panel")
+    print("  |cffffff00/mb version|r - which version is actually loaded")
     print("  |cffffff00/mb lock|r / |cffffff00unlock|r - pin or release the flask")
+    print("    (or hover the flask: the padlock does the same, and the corner grip resizes)")
     print("  |cffffff00/mb test|r - 5-second demo")
     print("  |cffffff00/mb style flask/text/bar|r - flask, text only or bar")
     print("  |cffffff00/mb scale <n>|r - scale (0.5 - 3)")
@@ -273,12 +275,17 @@ handlers.reset = function()
     MB:Print("options restored.")
 end
 
+handlers.version = function()
+    MB:Print("version: " .. MB:Version() .. " (loaded, not the file on disk)")
+end
+
 handlers.status = function()
     local db = MB:GetDB()
     MB:Print(("mana: %s | rule active: %s | left: %.1fs")
         :format(MB:UsesMana() and "yes" or "no",
                 MB:IsActive() and "yes" or "no",
                 MB:Remaining()))
+    MB:Print("version: " .. MB:Version())
     MB:Print(("style: %s | pinned: %s | scale: %s | sound: %s | glow: %s")
         :format(tostring(db.style), tostring(db.locked), tostring(db.scale),
                 tostring(db.sound), tostring(db.glow)))

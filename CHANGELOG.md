@@ -1,5 +1,47 @@
 # Changelog
 
+## 1.6.0
+
+### Place it without typing
+
+- Hovering the flask now brings up a **padlock** in its top-left corner. One
+  click pins or releases it, which is what `/mb lock` and `/mb unlock` have
+  always done — except you no longer have to remember the command to find out
+  you can move the thing at all.
+- Released, a **grip** appears in the opposite corner. Dragging it diagonally
+  changes the scale, between the same 0.5 and 3 that `/mb scale` and the panel
+  accept: it is a second way into one setting, not a setting of its own.
+- **Neither appears in combat.** They exist to place the notice, and once a
+  fight starts the notice is something you read. If the fight starts with the
+  cursor on the flask, they go away by themselves.
+- The grip only exists while the flask is released. Resizing something you
+  cannot move would leave it growing out of a corner you did not choose.
+- Changing the scale no longer moves the flask. The anchor's x and y are
+  measured in the frame's own scale, so the same numbers land somewhere else
+  once the scale changes; they are now compensated where the scale is applied,
+  which fixes it for the grip, for `/mb scale` and for the panel alike.
+- The flask takes mouse *motion* at all times so the padlock can show up even
+  while pinned, but it only takes **clicks** when released. Pinned, it no
+  longer stands between you and whatever is behind it.
+- The word in the bulb is centred by its ink, not by its box. A text's box runs
+  from the top of the tall letters to the tail of the ones that drop, and
+  `regen` has no tall letter and does have the tail of the `g`: centring the
+  box left the word sitting low in the flask. It is now raised by what that
+  mismatch measures. The countdown is untouched — digits do not drop below the
+  line, and their bias is the opposite one.
+- **`/mb version`** prints the version the client actually has loaded. The
+  addon index is built at startup, so swapping the files with the game open
+  does not move it until a reload: that is what makes it answer "did the copy
+  I just made take effect?", which comparing files on disk cannot. `/mb status`
+  carries the same line.
+- The flask now goes out **as one piece**. The fade lowers the alpha of the
+  frame, which every piece hanging off it inherits — but the halo kept
+  pulsing its own alpha and every bubble kept running its own fade-in and
+  fade-out, and those multiply with the frame's. Each piece was going out on
+  its own curve, so the flask came apart in layers instead of leaving whole.
+  Both are now frozen for the half second the fade lasts, which is continuous
+  and shows no step; what moves keeps moving.
+
 ## 1.5.0
 
 ### The flask follows your mana again

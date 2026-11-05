@@ -54,6 +54,14 @@ que contar. Para colocarlo:
 /mb lock       lo fija en su sitio
 ```
 
+O sin escribir nada: pasá el ratón por encima y aparece un candado en una
+esquina. Un clic lo fija o lo suelta. Suelto, en la esquina contraria sale un
+tirador que se arrastra en diagonal para cambiar el tamaño — es el mismo ajuste
+que escribe `/mb scale`.
+
+Ninguno de los dos aparece en combate. Están para colocar el matraz, y en una
+pelea el matraz es algo que se lee, no un mueble que se acomoda.
+
 ### Qué muestra el matraz
 
 El matraz pasa por dos fases y el color las distingue.
@@ -193,6 +201,7 @@ nota en el matraz aunque la regla esté corriendo.
 | Comando | Qué hace |
 | --- | --- |
 | `/mb config` | Abre el panel de opciones |
+| `/mb version` | Qué versión está cargada de verdad, no la del archivo en disco |
 | `/mb lock` / `/mb unlock` | Fija o libera el matraz |
 | `/mb test` | Demo de 5 segundos |
 | `/mb style flask/text/bar` | Matraz animado, solo letras, o una barra |

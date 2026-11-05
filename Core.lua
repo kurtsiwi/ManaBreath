@@ -140,6 +140,17 @@ function MB:GetDB()
     return ManaBreathDB or self.defaults
 end
 
+-- La version que el cliente tiene CARGADA, que no es lo mismo que la del .toc
+-- en disco: el indice de addons se arma al arrancar, asi que cambiar los
+-- archivos con el juego abierto no la mueve hasta recargar. De ahi que valga
+-- para saber si una copia nueva entro de verdad.
+function MB:Version()
+    local get = (C_AddOns and C_AddOns.GetAddOnMetadata) or GetAddOnMetadata
+    local ok, value = pcall(function() return get and get(ADDON_NAME, "Version") end)
+    if ok and type(value) == "string" and value ~= "" then return value end
+    return "unknown"
+end
+
 -- Mana actual, o nil si llega protegido. Lo usa Verify.lua.
 function MB:GetMana()
     return CurrentMana()
@@ -350,6 +361,7 @@ events:RegisterEvent("PLAYER_LOGIN")
 events:RegisterEvent("PLAYER_ENTERING_WORLD")
 events:RegisterEvent("ZONE_CHANGED_NEW_AREA")
 events:RegisterEvent("PLAYER_REGEN_ENABLED")
+events:RegisterEvent("PLAYER_REGEN_DISABLED")
 events:RegisterUnitEvent("UNIT_SPELLCAST_SUCCEEDED", "player")
 events:RegisterUnitEvent("UNIT_SPELLCAST_CHANNEL_START", "player")
 events:RegisterUnitEvent("UNIT_SPELLCAST_CHANNEL_STOP", "player")
@@ -383,6 +395,14 @@ events:SetScript("OnEvent", function(_, event, arg1, arg2, arg3)
         MB.lastDropAt = nil
         MB.pendingUntil = nil
         MB:UpdateRestrictionState()
+
+    elseif event == "PLAYER_REGEN_DISABLED" then
+        -- Empieza el combate: los controles del raton son para colocar el
+        -- aviso, y a partir de aqui el aviso es informacion. Si el cursor
+        -- estaba encima, se apagan solos.
+        if ns.display then
+            ns.display:SetHover(false)
+        end
 
     elseif event == "PLAYER_REGEN_ENABLED" then
         -- Sales de combate: la regla de 5 s deja de importar, asi que el
