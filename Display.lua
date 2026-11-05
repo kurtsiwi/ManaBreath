@@ -1039,8 +1039,12 @@ function D:BeginRegen(now)
     self:ClearRate()
 
     if secret then
-        -- No hay cifra que escribir: el nivel es lo unico que informa.
-        self:SetText(self.textMode and IDLE_TEXT or "", false)
+        -- No hay cifra que escribir, pero la palabra de la fase anterior no es
+        -- una cifra: es una constante, y dejarla puesta no lee nada. El matraz
+        -- la mantiene durante toda la fase verde en vez de quedarse mudo, que
+        -- es lo unico que tenia que decir cuando no hay numero. El modo texto
+        -- sigue con su marcador, que ahi ES la linea.
+        self:SetText(self.textMode and IDLE_TEXT or DONE_TEXT, false)
         self:DrawSecretFill()
     end
     return true

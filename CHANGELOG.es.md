@@ -20,8 +20,11 @@ Traduccion de [CHANGELOG.md](CHANGELOG.md), que es el que se publica.
   liquido, asi que montan la superficie sin una sola cuenta por frame. El
   destello de la barra hace lo mismo en su borde derecho.
 - **Sigue sin haber cifra**, y no la va a haber: imprimir un numero exige
-  formatear un valor secreto. El bulbo se queda vacio durante la fase verde, y
-  el modo texto ensena su etiqueta sin cifra.
+  formatear un valor secreto. Lo que el bulbo conserva es la palabra `regen`,
+  que es una constante y no cuesta ninguna lectura: sale al acabar la regla y
+  se queda toda la fase verde, en vez de que el matraz enmudezca justo cuando
+  empieza la fase que anuncia. El modo texto mantiene su marcador y su
+  etiqueta.
 - La fase tampoco puede cerrarse al llenarse el maná, porque eso es comparar.
   Se cierra por una pausa en los ticks, al salir de combate o al empezar otra
   regla. Sin un solo tick cierra a los 2,5 s en vez de a los 4 de siempre: con

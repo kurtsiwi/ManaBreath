@@ -17,8 +17,10 @@
   liquid, so they ride the surface without a single calculation per frame. The
   bar's spark does the same on its right edge.
 - **There is still no figure**, and there never will be: printing a number
-  means formatting a secret value. The bulb stays empty through the green
-  phase, and text mode shows its label with no figure.
+  means formatting a secret value. What the bulb keeps is the word `regen`,
+  which is a constant and costs no reading: it comes up when the rule ends and
+  stays for the whole green phase, instead of the flask going mute the moment
+  the phase it announces begins. Text mode keeps its marker and its label.
 - The phase cannot end on "mana full" either, because that is a comparison. It
   ends on a pause in the ticks, on leaving combat, or on a new rule. Without a
   single tick it closes after 2.5 s rather than the usual 4: at full mana there

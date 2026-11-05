@@ -977,7 +977,7 @@ check("el StatusBar existe", D.liquidBar ~= nil, true)
 check("y recibio el valor protegido", issecretvalue(D.liquidBar.value), true)
 check("el liquido de siempre se aparta", D.liquid:IsShown(), false)
 check("y el StatusBar ocupa su lugar", D.liquidBar:IsShown(), true)
-check("sin cifra que no se puede saber", D.timeText:GetText(), "")
+check("sin cifra, pero con la palabra", D.timeText:GetText(), "regen")
 
 -- Un tick: el evento llega aunque el valor no se pueda comparar.
 MOCK:fire("UNIT_POWER_UPDATE", "player", "MANA")
