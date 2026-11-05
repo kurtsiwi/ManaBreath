@@ -181,7 +181,9 @@ local function Build(self)
         .. "would say nothing. There is no glow in text mode.")
     self:AddCheckbox("holdRegen", "Track the mana coming back",
         "When the rule ends the flask goes on tracking the mana coming in, until "
-        .. "it fills up, you leave combat or you spend mana again." .. NEEDS_MANA)
+        .. "it fills up, you leave combat or you spend mana again. Where mana is a "
+        .. "secret value, as on Forever, the level still follows it but there is no "
+        .. "figure: the game draws the value and the addon never reads it.")
     self:AddCheckbox("sound", "Sound alert when the rule ends")
     self:AddHold()
 

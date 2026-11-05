@@ -867,7 +867,7 @@ check("el mana por segundo avisa", saidMatch("it cannot be measured here"), true
 
 said = {}
 slash("regen on")
-check("el seguimiento avisa", saidMatch("not on this client"), true)
+check("el seguimiento explica como dibuja sin leer", saidMatch("without reading it"), true)
 
 said = {}
 slash("status")
@@ -957,6 +957,67 @@ check("pero se acota a 10s", D.state, "regen")
 MB:Cancel()
 MOCK:advance(1)
 PinHold()
+
+print("\n-- fase verde con el mana secreto: se dibuja sin leerlo --")
+local realMana150 = MOCK.mana
+MOCK.mana = 2000
+MOCK:fire("UNIT_POWER_UPDATE", "player", "MANA")
+MOCK.mana = MOCK.SECRET
+
+-- Si alguna linea del ciclo tocara el valor secreto, el mock lanzaria: todo
+-- este bloque corre dentro de un pcall por eso.
+local okSecret = pcall(function()
+    MOCK:fire("UNIT_SPELLCAST_SUCCEEDED", "player", "cast-sf", 100)
+    MOCK:advance(5.9)
+end)
+check("el ciclo entero sin tocar el secreto", okSecret, true)
+check("la fase verde arranca igual", D.state, "regen")
+check("el matraz sigue encendido", D.frame:IsShown(), true)
+check("el StatusBar existe", D.liquidBar ~= nil, true)
+check("y recibio el valor protegido", issecretvalue(D.liquidBar.value), true)
+check("el liquido de siempre se aparta", D.liquid:IsShown(), false)
+check("y el StatusBar ocupa su lugar", D.liquidBar:IsShown(), true)
+check("sin cifra que no se puede saber", D.timeText:GetText(), "")
+
+-- Un tick: el evento llega aunque el valor no se pueda comparar.
+MOCK:fire("UNIT_POWER_UPDATE", "player", "MANA")
+MOCK:advance(3.0)
+check("con tick reciente sigue encendido", D.state, "regen")
+MOCK:advance(2.0)
+check("sin mas ticks se cierra sola", D.state, "idle")
+check("y el liquido vuelve a su sitio", D.liquid:IsShown(), true)
+
+-- Sin ningun tick la fase no se queda los 4 s: puede que ya estuvieras lleno.
+MOCK:fire("UNIT_SPELLCAST_SUCCEEDED", "player", "cast-sf2", 100)
+MOCK:advance(5.9)
+check("arranca otra vez", D.state, "regen")
+MOCK:advance(2.6)
+check("sin un solo tick cierra antes", D.state, "fading")
+MOCK:advance(1)
+
+-- En modo barra el valor va al StatusBar de la barra.
+slash("style bar")
+MOCK:fire("UNIT_SPELLCAST_SUCCEEDED", "player", "cast-sf3", 100)
+MOCK:advance(5.9)
+check("la barra tambien entra en fase", D.state, "regen")
+check("y su StatusBar lleva el secreto", issecretvalue(D.barBar.value), true)
+check("el relleno de siempre se aparta", D.barFill:IsShown(), false)
+MB:Cancel()
+MOCK:advance(5)
+slash("style flask")
+
+-- Y con el mana legible no cambia nada: el motor de siempre.
+MOCK.mana = 2000
+MOCK:fire("UNIT_POWER_UPDATE", "player", "MANA")
+MOCK:fire("UNIT_SPELLCAST_SUCCEEDED", "player", "cast-plain", 100)
+MOCK:advance(5.9)
+check("con mana legible, la fase de siempre", D.state, "regen")
+check("sin motor secreto", D.secretFill, false)
+check("con el liquido de siempre", D.liquid:IsShown(), true)
+check("y su porcentaje", D.timeText:GetText(), "40%")
+MB:Cancel()
+MOCK:advance(5)
+MOCK.mana = realMana150
 
 print("\n-- los .toc no se desincronizan --")
 -- Archivos que solo se diferencian en la linea de interfaz. Cada vez que se

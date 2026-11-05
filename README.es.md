@@ -22,19 +22,21 @@ que no hacen nada en silencio.
   (`C_Spell.GetSpellPowerCost`), que no es secreto.
 - El aviso `regen` al acabar la regla, y la gota que suena con él.
 - Las tres pieles, el panel de opciones y todos los ajustes.
+- **El matraz siguiendo tu maná real** durante la fase verde. El nivel lo
+  dibuja el juego a partir del valor protegido, a través de un StatusBar, y el
+  addon no llega a verlo.
 
 **No funciona allí**, y el addon te lo dice cuando lo intentas:
 
-- El porcentaje de maná en el bulbo, y el matraz siguiendo tu maná real: los
-  dos exigen formatear o comparar un valor secreto.
+- El porcentaje de maná en el bulbo: imprimir un número exige formatear un
+  valor secreto. El nivel está, la cifra no.
 - El maná por segundo (`/mb rate`), que son dos lecturas restadas.
 - `/mb verify`, que compara el maná de dentro de la ventana con el de fuera.
 - `/mb fallback`, que no puede distinguir una bajada de una subida.
+- Cerrar la fase verde cuando el maná se llena, que es una comparación. Se
+  cierra por una pausa en los ticks en su lugar.
 
-`/mb status` imprime `mana reads: secret` cuando es el caso. El matraz
-siguiendo tu maná puede volver — la vía sancionada es un StatusBar al que se
-le pasa el valor secreto directamente, sin que el addon llegue a verlo — y es
-lo siguiente en la lista.
+`/mb status` imprime `mana reads: secret` cuando es el caso.
 
 ## Instalación
 
@@ -77,9 +79,12 @@ al maná.
 | Destello del líquido | Acaba de entrar un tick de regeneración |
 | **Brillo alrededor del matraz** | Estás regenerando maná |
 
-Esta fase tiene que leer tu maná, así que **en Forever no corre**: el matraz
-enseña el aviso `regen` y se apaga. Ver [Lo que Forever
-permite](#lo-que-forever-permite).
+Donde el maná es un valor secreto, como en Forever, esta fase corre igual y el
+nivel sigue tu maná de verdad — lo dibuja el juego a partir del valor
+protegido y el addon no lo lee nunca — pero **no hay cifra en el bulbo ni maná
+por segundo**, y no puede cerrarse al llenarse el maná, porque saber que
+estás lleno es comparar. Se cierra por una pausa en los ticks. Ver [Lo que
+Forever permite](#lo-que-forever-permite).
 
 La fase verde se cierra de cuatro maneras: el maná se llena, sales de combate,
 vuelves a gastar maná (y entonces arranca otra vez la regla azul) o pasan

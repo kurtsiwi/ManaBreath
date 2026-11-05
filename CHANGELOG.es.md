@@ -2,6 +2,39 @@
 
 Traduccion de [CHANGELOG.md](CHANGELOG.md), que es el que se publica.
 
+## 1.5.0
+
+### El matraz vuelve a seguir tu maná
+
+- En Forever tu maná actual es un valor secreto, asi que la fase verde no
+  tenia con que dibujar: calcular una fraccion, o poner una altura a partir de
+  ella, es un error sobre un valor protegido. Ahora pasa por un **StatusBar**,
+  que es el unico widget al que el juego deja pasarle un secreto directamente.
+  El juego dibuja el nivel con el valor real y el addon no lo ve nunca.
+- Lo hacen el liquido del matraz y el relleno de la barra. Una `Curve` traduce
+  el maná al recorrido del liquido, asi que el bulbo lleno sigue siendo maná
+  lleno y el vacio conserva el dedo de liquido con el que esta dibujado el
+  cristal; en un cliente sin `C_CurveUtil` el nivel se dibuja sin ese zocalo en
+  vez de no dibujarse.
+- Las olas cuelgan de la textura del propio StatusBar, igual que colgaban del
+  liquido, asi que montan la superficie sin una sola cuenta por frame. El
+  destello de la barra hace lo mismo en su borde derecho.
+- **Sigue sin haber cifra**, y no la va a haber: imprimir un numero exige
+  formatear un valor secreto. El bulbo se queda vacio durante la fase verde, y
+  el modo texto ensena su etiqueta sin cifra.
+- La fase tampoco puede cerrarse al llenarse el maná, porque eso es comparar.
+  Se cierra por una pausa en los ticks, al salir de combate o al empezar otra
+  regla. Sin un solo tick cierra a los 2,5 s en vez de a los 4 de siempre: con
+  el maná lleno no viene nada, y el matraz no deberia quedarse esperandolo.
+- `UNIT_POWER_UPDATE` cuenta ahora como tick de regeneracion mientras la fase
+  verde este abierta y el maná sea secreto. El evento llega igual; lo que no se
+  puede saber es si el valor subio o bajo, y dentro de esa fase lo unico que
+  puede estar pasando es que entre maná.
+- Nada de esto toca el camino del maná legible, que sigue midiendo, imprimiendo
+  el porcentaje y el maná por segundo, y cerrandose al llenarte. Las pruebas
+  corren el ciclo entero dos veces, una con un numero normal y otra con un
+  valor que lanza error en cuanto algo intenta leerlo.
+
 ## 1.4.2
 
 ### Decir lo que todavia se puede saber

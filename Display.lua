@@ -33,6 +33,11 @@ local FADE_DURATION = 0.5
 -- ya este lleno, o que este cliente no avise de cada tick. Sin esto el matraz
 -- se quedaria encendido para siempre.
 local REGEN_TIMEOUT = 4.0
+-- Con el mana secreto no se puede saber si ya estas lleno, asi que la fase
+-- verde arranca siempre y es el primer tick el que la justifica. Si no llega
+-- ninguno se cierra antes: a mana lleno el matraz no deberia quedarse cuatro
+-- segundos esperando algo que no va a pasar.
+local REGEN_FIRST_GRACE = 2.5
 local TICK_FLASH = 0.30
 -- A que velocidad persigue el liquido al nivel de mana real. Al acabar la
 -- regla el matraz esta lleno y el mana casi nunca lo esta: saltar de golpe al
@@ -215,6 +220,7 @@ function D:Init()
         mask:SetAllPoints(f)
     end
     self.masked = mask ~= nil
+    self.mask = mask
 
     local liquid = f:CreateTexture(nil, "ARTWORK", nil, 0)
     liquid:SetTexture(ART .. "FlaskLiquid")
@@ -468,6 +474,8 @@ function D:LayoutBar()
     self.label:SetPoint("TOPLEFT", self.barBorder, "BOTTOMLEFT", 0, -gap)
     self.rateText:ClearAllPoints()
     self.rateText:SetPoint("TOPRIGHT", self.barBorder, "BOTTOMRIGHT", 0, -gap)
+
+    self:LayoutSecretFill()
 end
 
 function D:LayoutFlask()
@@ -515,6 +523,8 @@ function D:LayoutFlask()
     -- que si no el contador se queda verde sobre un matraz azul.
     self.timeText:SetShadowOffset(0, 0)
     self.timeText:SetTextColor(1, 1, 1)
+
+    self:LayoutSecretFill()
 end
 
 function D:ApplySettings()
@@ -596,6 +606,15 @@ function D:ApplyStyle()
         self:ShowBubbles(false)
     end
 
+    -- Cual de los dos StatusBar se ensena depende de la piel, y eso se
+    -- decidio al encenderlo: cambiar de piel a mitad de la fase verde tiene
+    -- que volver a decidirlo.
+    if self.secretOn then
+        self.secretOn = nil
+        self:UseSecretFill(true)
+        self:DrawSecretFill()
+    end
+
     -- La etiqueta, el mana por segundo y el color de fase solo se escriben
     -- cuando cambian, y lo que cambia aqui es la pieza que los lleva: sin
     -- repintarlos, la piel nueva sale en blanco hasta la fase siguiente.
@@ -645,6 +664,161 @@ function D:SetRate(rate)
     if text == self.shownRate then return end
     self.shownRate = text
     self.rateText:SetText(text)
+end
+
+-- ---------------------------------------------------------------------
+-- Nivel de mana cuando el valor es secreto.
+--
+-- Con el mana protegido no hay fraccion que calcular ni altura que poner:
+-- cualquier cuenta con ese valor es un error en tiempo de ejecucion. Pero
+-- StatusBar:SetValue() si lo acepta, y el juego lo dibuja sin que el addon
+-- llegue a verlo. De ahi que la fase verde tenga dos motores: la textura de
+-- siempre cuando el mana se puede leer, y un StatusBar cuando no.
+--
+-- La regla azul no pasa por aqui: su nivel sale del reloj, que es un numero
+-- como cualquier otro.
+-- ---------------------------------------------------------------------
+
+-- Se construye la primera vez que hace falta, no al entrar: en un cliente que
+-- entregue el mana normal esto no existe nunca.
+function D:EnsureSecretFill()
+    if self.secretReady ~= nil then return self.secretReady end
+    self.secretReady = false
+
+    local f = self.frame
+    if not (f and CreateFrame) then return false end
+
+    local ok, bar = pcall(CreateFrame, "StatusBar", nil, f)
+    if not ok or type(bar) ~= "table" then return false end
+
+    bar:SetStatusBarTexture(ART .. "FlaskLiquid")
+    bar:SetOrientation("VERTICAL")
+    bar:SetMinMaxValues(0, 1)
+    bar:Hide()
+    local tex = bar.GetStatusBarTexture and bar:GetStatusBarTexture()
+    if not tex then return false end
+    if self.mask and tex.AddMaskTexture then
+        tex:AddMaskTexture(self.mask)
+    end
+    self.liquidBar, self.liquidBarTex = bar, tex
+
+    local okBar, bbar = pcall(CreateFrame, "StatusBar", nil, f)
+    if not okBar or type(bbar) ~= "table" then return false end
+    bbar:SetStatusBarTexture(ART .. "BarFill")
+    bbar:SetMinMaxValues(0, 1)
+    bbar:Hide()
+    self.barBar = bbar
+    self.barBarTex = bbar.GetStatusBarTexture and bbar:GetStatusBarTexture()
+
+    self.secretReady = true
+    self:LayoutSecretFill()
+    return true
+end
+
+-- El StatusBar ocupa exactamente el recorrido de la pieza a la que sustituye,
+-- asi que lo que dibuja cae donde caia antes y las olas pueden colgar de su
+-- borde igual que colgaban del liquido.
+function D:LayoutSecretFill()
+    if not self.secretReady then return end
+    local f = self.frame
+
+    if self.bottomPx then
+        local bar = self.liquidBar
+        bar:ClearAllPoints()
+        bar:SetPoint("BOTTOMLEFT", f, "BOTTOMLEFT", 0, 0)
+        bar:SetPoint("BOTTOMRIGHT", f, "BOTTOMRIGHT", 0, 0)
+        bar:SetHeight(self.bottomPx + self.spanPx)
+        -- El recorrido cambio, asi que la curva que lo mapea ya no sirve.
+        self.curve = nil
+    end
+
+    if self.barWidth then
+        local bbar = self.barBar
+        bbar:ClearAllPoints()
+        bbar:SetPoint("TOPLEFT", self.barTrack, "TOPLEFT", 0, 0)
+        bbar:SetSize(self.barWidth, self.barTrack:GetHeight())
+    end
+end
+
+-- El liquido no arranca en el suelo del marco: a mana cero el bulbo ya tiene
+-- un dedo de liquido. Una Curve traduce "mana" a "parte del recorrido" sin
+-- que nadie lea el valor, que es justo para lo que existen. Si el cliente no
+-- las trae, se pierde ese zocalo y el resto sigue funcionando.
+function D:LiquidCurve(maxMana)
+    if not (C_CurveUtil and C_CurveUtil.CreateCurve) then return nil end
+
+    local span = (self.bottomPx or 0) + (self.spanPx or 0)
+    if span <= 0 then return nil end
+
+    if self.curve and self.curveMax == maxMana then return self.curve end
+
+    local ok, curve = pcall(C_CurveUtil.CreateCurve,
+        { { 0, self.bottomPx / span }, { maxMana, 1 } })
+    if not ok or type(curve) ~= "table" or type(curve.Evaluate) ~= "function" then
+        return nil
+    end
+
+    self.curve, self.curveMax = curve, maxMana
+    return curve
+end
+
+function D:DrawSecretFill()
+    if not self.secretReady then return end
+
+    local maxMana = MB:GetManaMax()
+    if maxMana == nil or maxMana <= 0 then return end
+    local mana = MB:GetManaRaw()
+
+    if self.flaskMode then
+        local curve = self:LiquidCurve(maxMana)
+        if curve then
+            self.liquidBar:SetMinMaxValues(0, 1)
+            self.liquidBar:SetValue(curve:Evaluate(mana))
+        else
+            self.liquidBar:SetMinMaxValues(0, maxMana)
+            self.liquidBar:SetValue(mana)
+        end
+    elseif self.barMode then
+        self.barBar:SetMinMaxValues(0, maxMana)
+        self.barBar:SetValue(mana)
+    end
+end
+
+-- Enciende o apaga el motor secreto. Las olas y el destello cuelgan de la
+-- pieza que lleva el nivel, asi que cambiar de motor es tambien reanclarlos.
+function D:UseSecretFill(on)
+    if on and not self:EnsureSecretFill() then return false end
+    if not self.secretReady then return false end
+    if self.secretOn == on then return true end
+    self.secretOn = on
+
+    self.liquid:SetShown(not on)
+    self.liquidBar:SetShown(on and self.flaskMode)
+    local waveAnchor = on and self.liquidBarTex or self.liquid
+    local waveH = WAVE_H * (self.height or 0)
+    if waveH > 0 then
+        AnchorWave(self.wave1, waveAnchor, waveH)
+        AnchorWave(self.wave2, waveAnchor, waveH)
+    end
+
+    self.barBar:SetShown(on and self.barMode)
+    if on then
+        -- El relleno de siempre se apaga, y el destello pasa a montarse en el
+        -- borde del StatusBar, que es el que avanza ahora.
+        self.barShown = false
+        self.barFill:Hide()
+        if self.barMode and self.barBarTex then
+            self.barSpark:ClearAllPoints()
+            self.barSpark:SetPoint("CENTER", self.barBarTex, "RIGHT", 0, 0)
+            self.barSpark:SetShown(true)
+        end
+    else
+        self.barSpark:ClearAllPoints()
+        self.barSpark:SetPoint("CENTER", self.barFill, "RIGHT", 0, 0)
+        self.barSpark:Hide()
+    end
+
+    return true
 end
 
 -- frac va de 0 a 1. force redibuja aunque no haya cambiado, que es lo que
@@ -705,6 +879,11 @@ function D:SetLiquidColor(color)
     self.liquid:SetVertexColor(color[1], color[2], color[3])
     self.wave1:SetVertexColor(color[1], color[2], color[3])
     self.wave2:SetVertexColor(color[1], color[2], color[3])
+    -- El destello de cada tick tiene que verse tambien cuando dibuja el
+    -- StatusBar: es la misma fase y el mismo motor de color.
+    if self.liquidBarTex then
+        self.liquidBarTex:SetVertexColor(color[1], color[2], color[3])
+    end
 end
 
 function D:SetGlow(enabled, color)
@@ -778,6 +957,10 @@ end
 
 function D:Start(startedAt, expires)
     if not self.frame then return end
+    -- Una regla nueva dibuja por reloj, que es un numero: el motor secreto
+    -- sobra y hay que devolver las olas y el destello a su sitio.
+    self.secretFill = false
+    self:UseSecretFill(false)
     self.startedAt = startedAt
     self.expires = expires
     self.state = "active"
@@ -829,16 +1012,37 @@ end
 -- matraz se apaga como siempre.
 function D:BeginRegen(now)
     if not MB:GetDB().holdRegen then return false end
-    local fraction = MB:GetManaFraction()
-    if fraction == nil or fraction >= 1 then return false end
 
+    local fraction = MB:GetManaFraction()
+    local secret = false
+
+    if fraction == nil then
+        -- Sin fraccion solo hay fase si el mana es secreto y el cliente deja
+        -- dibujarlo: cualquier otro motivo para no poder leerlo es un motivo
+        -- para no ensenar nada.
+        if not (MB:ManaIsSecret() and self:UseSecretFill(true)) then return false end
+        secret = true
+        self.manaFraction, self.manaPercent, self.shownPercent = nil, nil, nil
+    else
+        -- Lleno no hay nada que contar, y eso solo se sabe con el mana legible.
+        if fraction >= 1 then return false end
+        self.manaFraction = fraction
+        self.manaPercent = floor(fraction * 100)
+        self.shownPercent = nil
+    end
+
+    self.secretFill = secret
+    self.sawTick = false
     self.state = "regen"
     self:SetLabel(LABEL_REGEN)
-    self.manaFraction = fraction
-    self.manaPercent = floor(fraction * 100)
-    self.shownPercent = nil
     self.lastTickAt = now
     self:ClearRate()
+
+    if secret then
+        -- No hay cifra que escribir: el nivel es lo unico que informa.
+        self:SetText(self.textMode and IDLE_TEXT or "", false)
+        self:DrawSecretFill()
+    end
     return true
 end
 
@@ -875,6 +1079,15 @@ function D:ManaTick()
     if self.state ~= "regen" then return end
     local now = GetTime()
     self.lastTickAt = now
+    self.sawTick = true
+
+    if self.secretFill then
+        -- Todo lo de abajo lee el mana. Aqui solo se puede volver a pasarselo
+        -- al StatusBar y marcar el tick con el destello de siempre.
+        self:DrawSecretFill()
+        self.flashLeft = TICK_FLASH
+        return
+    end
     -- Se mide en las tres pieles aunque el matraz no lo dibuje, y tambien con
     -- la cifra apagada: es una llamada al API por tick, uno cada dos
     -- segundos, y asi el motor sigue siendo uno. Lo que se apaga en una piel
@@ -909,6 +1122,8 @@ end
 
 function D:Reset()
     if not self.frame then return end
+    self.secretFill = false
+    self:UseSecretFill(false)
     self.state = "idle"
     self.holdLeft = nil
     self.shownTenths = nil
@@ -1041,21 +1256,34 @@ function D:OnUpdate(elapsed)
         end
 
     elseif self.state == "regen" then
-        -- El liquido persigue al mana: el matraz pasa de estar lleno (la regla
-        -- acabada) a marcar lo que de verdad tienes, y sube con cada tick.
-        if self.fill ~= self.manaFraction then
-            self:SetFill(Approach(self.fill, self.manaFraction, elapsed))
-        end
+        if self.secretFill then
+            -- El nivel lo lleva el StatusBar y se redibuja en cada tick: aqui
+            -- no hay nada que perseguir ni cifra que escribir, porque el valor
+            -- no se puede leer. Queda cerrar la fase a su hora, y sin el
+            -- primer tick se cierra antes: puede que ya estuvieras lleno.
+            local limit = self.sawTick and REGEN_TIMEOUT or REGEN_FIRST_GRACE
+            if now - self.lastTickAt >= limit then
+                self.state = "fading"
+            end
+        else
+            -- El liquido persigue al mana: el matraz pasa de estar lleno (la
+            -- regla acabada) a marcar lo que de verdad tienes, y sube con cada
+            -- tick.
+            if self.fill ~= self.manaFraction then
+                self:SetFill(Approach(self.fill, self.manaFraction, elapsed))
+            end
 
-        if self.shownPercent ~= self.manaPercent then
-            self.shownPercent = self.manaPercent
-            -- Un format por cambio de entero, no por frame: unas pocas veces
-            -- por segundo y, siendo cadenas cortas, Lua las reaprovecha.
-            self:SetText(format("%d%%", self.manaPercent), false)
-        end
+            if self.shownPercent ~= self.manaPercent then
+                self.shownPercent = self.manaPercent
+                -- Un format por cambio de entero, no por frame: unas pocas
+                -- veces por segundo y, siendo cadenas cortas, Lua las
+                -- reaprovecha.
+                self:SetText(format("%d%%", self.manaPercent), false)
+            end
 
-        if now - self.lastTickAt >= REGEN_TIMEOUT then
-            self.state = "fading"
+            if now - self.lastTickAt >= REGEN_TIMEOUT then
+                self.state = "fading"
+            end
         end
 
     elseif self.state == "fading" then

@@ -1,5 +1,37 @@
 # Changelog
 
+## 1.5.0
+
+### The flask follows your mana again
+
+- On Forever your current mana is a secret value, so the green phase had
+  nothing to draw with: computing a fraction, or setting a height from one, is
+  an error on a protected value. It now goes through a **StatusBar**, which is
+  the one widget the game lets you feed a secret directly. The game draws the
+  level from the real value and the addon never sees it.
+- The flask's liquid and the bar's fill both do it. A `Curve` maps mana to the
+  liquid's travel, so a full bulb still means full mana and an empty one still
+  leaves the finger of liquid the glass is drawn with; on a client without
+  `C_CurveUtil` the level is drawn without that offset instead of not at all.
+- The waves hang from the StatusBar's own texture, the way they hung from the
+  liquid, so they ride the surface without a single calculation per frame. The
+  bar's spark does the same on its right edge.
+- **There is still no figure**, and there never will be: printing a number
+  means formatting a secret value. The bulb stays empty through the green
+  phase, and text mode shows its label with no figure.
+- The phase cannot end on "mana full" either, because that is a comparison. It
+  ends on a pause in the ticks, on leaving combat, or on a new rule. Without a
+  single tick it closes after 2.5 s rather than the usual 4: at full mana there
+  is nothing coming, and the flask should not sit there waiting for it.
+- `UNIT_POWER_UPDATE` now counts as a regeneration tick while the green phase
+  is open and mana is secret. The event still arrives; what cannot be known is
+  whether the value went up or down, and inside that phase the only thing that
+  can be happening is mana coming in.
+- None of this touches the readable-mana path, which still measures, prints the
+  percentage and the mana per second, and ends when you fill up. The test suite
+  runs the whole cycle twice, once with a plain number and once with a value
+  that raises an error the moment anything tries to read it.
+
 ## 1.4.2
 
 ### Saying what can still be known

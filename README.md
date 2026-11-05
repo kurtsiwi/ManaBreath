@@ -22,20 +22,22 @@ nothing.
   (`C_Spell.GetSpellPowerCost`), which is not secret.
 - The `regen` notice when the rule ends, and the water drop with it.
 - The three looks, the options panel and every setting.
+- **The flask following your real mana** through the green phase. The level is
+  drawn by the game from the protected value, through a StatusBar, and the
+  addon never sees it.
 
 **Does not work there**, and the addon says so when you try:
 
-- The mana percentage in the bulb, and the flask following your real mana:
-  both mean formatting or comparing a secret value.
+- The mana percentage in the bulb: printing a number means formatting a secret
+  value. The level is there, the figure is not.
 - The mana per second (`/mb rate`), which is two readings subtracted.
 - `/mb verify`, which compares the mana inside the window against the mana
   outside it.
 - `/mb fallback`, which cannot tell a drop from a rise.
+- Ending the green phase when your mana fills up, which is a comparison. It
+  ends on a pause in the ticks instead.
 
-`/mb status` prints `mana reads: secret` when that is the case. The flask
-following your mana can come back — the sanctioned path is a StatusBar fed the
-secret value directly, without the addon ever seeing it — and that is the next
-thing on the list.
+`/mb status` prints `mana reads: secret` when that is the case.
 
 ## Installation
 
@@ -78,8 +80,11 @@ mana.
 | Liquid flash | A regeneration tick just landed |
 | **Glow around the flask** | You are regenerating mana |
 
-This phase has to read your mana, so **on Forever it does not run**: the flask
-shows the `regen` notice and goes out. See [What Forever
+Where mana is a secret value, as on Forever, this phase still runs and the
+level still follows your mana — the game draws it from the protected value and
+the addon never reads it — but **there is no figure in the bulb and no mana per
+second**, and it cannot end on "mana full", because knowing you are full means
+comparing. It ends on a pause in the ticks instead. See [What Forever
 allows](#what-forever-allows).
 
 The green phase ends in four ways: mana fills up, you leave combat, you spend

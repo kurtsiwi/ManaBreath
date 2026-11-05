@@ -84,6 +84,27 @@ function issecretvalue(v)
     return type(v) == "table" and rawget(v, "__isSecret") == true
 end
 
+-- Curves de 12.0: mapean un valor a otro sin que el codigo del addon lo vea.
+-- Lo que importa conservar para las pruebas es que un secreto entra y un
+-- secreto sale: si el addon intentara operar con el resultado, reventaria
+-- igual que en el juego.
+C_CurveUtil = {
+    CreateCurve = function(points)
+        return {
+            points = points,
+            Evaluate = function(self, v)
+                if issecretvalue(v) then return SECRET end
+                local first, last = self.points[1], self.points[#self.points]
+                local x0, y0, x1, y1 = first[1], first[2], last[1], last[2]
+                if x1 == x0 then return y1 end
+                local t = (v - x0) / (x1 - x0)
+                if t < 0 then t = 0 elseif t > 1 then t = 1 end
+                return y0 + (y1 - y0) * t
+            end,
+        }
+    end,
+}
+
 C_Spell = {
     -- Devuelve una tabla nueva en cada llamada, como el API real: asi
     -- tests/bench.lua mide la asignacion que el addon paga de verdad.
@@ -292,6 +313,17 @@ function Frame:GetStringWidth()
     return #(self.text or "") * (self.fontSize or 10) * 0.6
 end
 function Frame:CreateTexture() return newFrame("Texture") end
+-- StatusBar: la unica via por la que un valor secreto se puede dibujar. El
+-- mock guarda el valor sin tocarlo, que es justo lo que hace el juego.
+function Frame:SetMinMaxValues(a, b) self.minValue, self.maxValue = a, b end
+function Frame:GetStatusBarTexture()
+    local t = rawget(self, "sbTexture")
+    if not t then
+        t = newFrame("Texture")
+        self.sbTexture = t
+    end
+    return t
+end
 function Frame:CreateMaskTexture() return newFrame("MaskTexture") end
 function Frame:CreateFontString() return newFrame("FontString") end
 function Frame:EnableMouse(v) self.mouse = v end

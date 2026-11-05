@@ -169,8 +169,9 @@ handlers.regen = function(value)
     local enabled = Toggle("holdRegen", value, "regen tracking")
     if enabled then
         if MB:ManaIsSecret() then
-            MB:Print("|cffff9900not on this client|r: mana is a secret value, so there")
-            MB:Print("is no mana to follow. The flask goes out when the notice ends.")
+            MB:Print("the flask follows your mana |cffffff00without reading it|r, so there")
+            MB:Print("is no figure. It ends on a pause in the ticks, when you leave")
+            MB:Print("combat, or when you spend mana again.")
         else
             MB:Print("the flask goes on tracking the mana coming in until it fills")
             MB:Print("up, you leave combat or you spend mana again.")

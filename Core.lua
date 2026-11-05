@@ -157,6 +157,20 @@ function MB:ManaIsSecret()
     return IsSecret(UnitPower("player", MANA))
 end
 
+-- El mana tal cual llega, protegido o no. Existe para pasarlo a las APIs que
+-- aceptan valores secretos (StatusBar:SetValue, Curve:Evaluate) y a ninguna
+-- otra cosa: aqui no se mira, no se compara y no se imprime. Quien quiera un
+-- numero usa GetMana, que devuelve nil cuando no lo hay.
+function MB:GetManaRaw()
+    return UnitPower("player", MANA)
+end
+
+-- El maximo no es secreto en 12.0, y es lo que deja dibujar el actual: da el
+-- recorrido de la barra sin tener que leer el valor que la llena.
+function MB:GetManaMax()
+    return SafeNumber(UnitPowerMax("player", MANA))
+end
+
 -- Mana de 0 a 1, o nil si no se puede saber. UnitPowerMax("player") no es
 -- secreto en 12.0, pero se pasa por SafeNumber igual: si algun dia lo fuera,
 -- el matraz se apagaria en vez de reventar.
@@ -281,7 +295,17 @@ function MB:HandlePower()
     local previous = self.lastMana
     self.lastMana = mana
 
-    if mana == nil or previous == nil then return end
+    if mana == nil then
+        -- Mana secreto: el evento llega igual, pero no se puede saber si
+        -- subio o bajo. Durante la fase de regen lo unico que puede estar
+        -- pasando es que entre mana (gastarlo arranca la regla por el otro
+        -- lado), asi que cuenta como tick. Fuera de esa fase no hay nada que
+        -- hacer: la deteccion va por el coste del hechizo.
+        if ns.display then ns.display:ManaTick() end
+        return
+    end
+
+    if previous == nil then return end
 
     if mana > previous then
         -- El mana sube: esto es un tick de regeneracion, y es justo lo que el
