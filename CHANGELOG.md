@@ -14,13 +14,13 @@
   three looks and the options panel.
 - But four things cannot work there, and this release **says so instead of
   leaving switches that quietly do nothing**:
-  — `/mb verify` explains that mana is a secret value on this client and that
+  - `/mb verify` explains that mana is a secret value on this client and that
     the rule cannot be measured, rather than suggesting you move somewhere
     else and try again. Moving will not help.
-  — `/mb fallback on` warns that it will do nothing: with a secret value a mana
+  - `/mb fallback on` warns that it will do nothing: with a secret value a mana
     drop cannot be told from a rise.
-  — `/mb rate on` warns that a rate is two readings subtracted.
-  — `/mb regen on` warns that there is no mana to follow, so the flask goes out
+  - `/mb rate on` warns that a rate is two readings subtracted.
+  - `/mb regen on` warns that there is no mana to follow, so the flask goes out
     when the notice ends.
 - `/mb status` gained a **`mana reads:`** line that prints `secret` or `plain`.
   The `restricted context:` line stays, but `C_RestrictedActions` does not

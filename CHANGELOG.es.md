@@ -16,13 +16,13 @@ Traduccion de [CHANGELOG.md](CHANGELOG.md), que es el que se publica.
   tres pieles y el panel de opciones.
 - Pero hay cuatro cosas que alli no pueden funcionar, y esta version **lo dice
   en vez de dejar mandos que no hacen nada**:
-  — `/mb verify` explica que el maná es un valor secreto en este cliente y que
+  - `/mb verify` explica que el maná es un valor secreto en este cliente y que
     la regla no se puede medir, en vez de mandarte a probar a otro sitio.
     Cambiar de sitio no va a servir.
-  — `/mb fallback on` avisa de que no hara nada: con un valor secreto, una
+  - `/mb fallback on` avisa de que no hara nada: con un valor secreto, una
     bajada de maná no se distingue de una subida.
-  — `/mb rate on` avisa de que una tasa son dos lecturas restadas.
-  — `/mb regen on` avisa de que no hay maná que seguir, asi que el matraz se
+  - `/mb rate on` avisa de que una tasa son dos lecturas restadas.
+  - `/mb regen on` avisa de que no hay maná que seguir, asi que el matraz se
     apaga cuando acaba el aviso.
 - `/mb status` ganó una linea **`mana reads:`** que imprime `secret` o `plain`.
   La linea `restricted context:` se queda, pero `C_RestrictedActions` no existe
