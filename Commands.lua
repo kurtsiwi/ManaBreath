@@ -168,8 +168,13 @@ end
 handlers.regen = function(value)
     local enabled = Toggle("holdRegen", value, "regen tracking")
     if enabled then
-        MB:Print("the flask goes on tracking the mana coming in until it fills")
-        MB:Print("up, you leave combat or you spend mana again.")
+        if MB:ManaIsSecret() then
+            MB:Print("|cffff9900not on this client|r: mana is a secret value, so there")
+            MB:Print("is no mana to follow. The flask goes out when the notice ends.")
+        else
+            MB:Print("the flask goes on tracking the mana coming in until it fills")
+            MB:Print("up, you leave combat or you spend mana again.")
+        end
     else
         MB:Print("the flask will go out as soon as the rule ends.")
         ns.display:EndRegen()
@@ -211,7 +216,10 @@ handlers.rate = function(value)
     local enabled = Toggle("showRate", value, "mana per second")
     ns.display:ApplySettings()
     if ns.options then ns.options:Refresh() end
-    if enabled and MB:GetDB().style == "flask" then
+    if enabled and MB:ManaIsSecret() then
+        MB:Print("|cffff9900it cannot be measured here|r: mana is a secret value, and")
+        MB:Print("a rate is two readings subtracted.")
+    elseif enabled and MB:GetDB().style == "flask" then
         MB:Print("the flask does not draw it: no room for a second figure.")
         MB:Print("it shows in |cffffff00/mb style bar|r and |cffffff00/mb style text|r.")
     end
@@ -225,7 +233,12 @@ end
 handlers.fallback = function(value)
     local enabled = Toggle("powerFallback", value, "mana fallback")
     if enabled then
-        MB:Print("|cffff9900careful|r: this can produce false positives if something else drains your mana.")
+        if MB:ManaIsSecret() then
+            MB:Print("|cffff9900it will do nothing here|r: mana is a secret value, so a")
+            MB:Print("drop cannot be told from a rise. Detection runs on the cost.")
+        else
+            MB:Print("|cffff9900careful|r: this can produce false positives if something else drains your mana.")
+        end
     end
 end
 
@@ -275,6 +288,9 @@ handlers.status = function()
                 tostring(db.holdRegen),
                 tonumber(db.doneHold) or MB.defaults.doneHold))
     MB:Print("flask phase: " .. tostring(ns.display and ns.display.state))
+
+    MB:Print("mana reads: " .. (MB:ManaIsSecret()
+        and "|cffff9900secret|r (no figure, no rate, no verify)" or "plain"))
 
     if MB.costApi then
         MB:Print("cost reads: " .. MB.costApi)

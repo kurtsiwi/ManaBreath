@@ -5,10 +5,36 @@
 Addon para **World of Warcraft: Forever** que muestra cuándo está activa la
 **regla de 5 segundos** de regeneración de maná (5SR): un matraz animado se
 llena durante los 5 segundos posteriores a gastar maná, lleva la cuenta atrás
-dentro del bulbo y, cuando la regla acaba, se queda encendido marcando el maná
-que entra con cada tick hasta que se llene o salgas de combate.
+dentro del bulbo y marca el instante en que el maná vuelve a entrar.
 
 Liviano y enfocado en una sola cosa: nada de pociones, gemas ni runas.
+
+## Lo que Forever permite
+
+Forever corre sobre el motor de **Midnight**, donde tu **maná actual es un
+valor secreto**: los addons pueden dibujarlo, nunca leerlo. ManaBreath lo
+comprueba en caliente con `issecretvalue()` y lo dice, en vez de dejar mandos
+que no hacen nada en silencio.
+
+**Funciona en el cliente vivo**, porque nada de esto necesita leer tu maná:
+
+- La cuenta atrás de 5 segundos, sacada del coste del hechizo
+  (`C_Spell.GetSpellPowerCost`), que no es secreto.
+- El aviso `regen` al acabar la regla, y la gota que suena con él.
+- Las tres pieles, el panel de opciones y todos los ajustes.
+
+**No funciona allí**, y el addon te lo dice cuando lo intentas:
+
+- El porcentaje de maná en el bulbo, y el matraz siguiendo tu maná real: los
+  dos exigen formatear o comparar un valor secreto.
+- El maná por segundo (`/mb rate`), que son dos lecturas restadas.
+- `/mb verify`, que compara el maná de dentro de la ventana con el de fuera.
+- `/mb fallback`, que no puede distinguir una bajada de una subida.
+
+`/mb status` imprime `mana reads: secret` cuando es el caso. El matraz
+siguiendo tu maná puede volver — la vía sancionada es un StatusBar al que se
+le pasa el valor secreto directamente, sin que el addon llegue a verlo — y es
+lo siguiente en la lista.
 
 ## Instalación
 
@@ -50,6 +76,10 @@ al maná.
 | Número en el bulbo | El porcentaje de maná |
 | Destello del líquido | Acaba de entrar un tick de regeneración |
 | **Brillo alrededor del matraz** | Estás regenerando maná |
+
+Esta fase tiene que leer tu maná, así que **en Forever no corre**: el matraz
+enseña el aviso `regen` y se apaga. Ver [Lo que Forever
+permite](#lo-que-forever-permite).
 
 La fase verde se cierra de cuatro maneras: el maná se llena, sales de combate,
 vuelves a gastar maná (y entonces arranca otra vez la regla azul) o pasan
@@ -165,14 +195,14 @@ nota en el matraz aunque la regla esté corriendo.
 | `/mb size <ancho> <alto>` | Tamaño del marco; el dibujo supone un marco cuadrado |
 | `/mb sound on/off` | Una gota de agua al terminar la regla |
 | `/mb glow regen/rule/off` | Cuándo brilla el matraz |
-| `/mb regen on/off` | Seguir el maná que vuelve cuando la regla acaba |
+| `/mb regen on/off` | Seguir el maná que vuelve cuando la regla acaba (necesita maná legible) |
 | `/mb hold <segundos>` | Cuánto dura el aviso `regen`, de 0 a 10 |
 | `/mb text on/off` | Contador dentro del bulbo |
-| `/mb rate on/off` | Maná por segundo, en la barra y en modo texto |
+| `/mb rate on/off` | Maná por segundo, en la barra y en modo texto (necesita maná legible) |
 | `/mb always on/off` | Mantener el matraz siempre visible |
-| `/mb fallback on/off` | Detectar también por bajadas de maná |
+| `/mb fallback on/off` | Detectar también por bajadas de maná (necesita maná legible) |
 | `/mb channel on/off` | Reiniciar el contador al cortar una canalización |
-| `/mb verify` | Mide contra el cliente si la regla de 5 s existe de verdad |
+| `/mb verify` | Mide contra el cliente si la regla de 5 s existe de verdad (necesita maná legible) |
 | `/mb debug on/off` | Imprime el costo leído de cada casteo |
 | `/mb status` | Estado actual, el contexto restringido y de dónde se leen los costes |
 | `/mb reset` | Vuelve a los valores por defecto |

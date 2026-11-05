@@ -34,8 +34,18 @@ function V:Arm()
         return
     end
     if MB:GetMana() == nil then
-        MB:Print("verify: mana arrives protected, it cannot be measured here.")
-        MB:Print("try it outside an instance and out of combat.")
+        -- Un mana secreto no es un mal momento: es el diseno del cliente, y
+        -- repetirlo en otro sitio no va a cambiarlo. Decirlo ahorra que
+        -- alguien lo intente veinte veces.
+        if MB:ManaIsSecret() then
+            MB:Print("verify: mana is a |cffff9900secret value|r on this client.")
+            MB:Print("the addon can draw it but never read it, so the rule cannot")
+            MB:Print("be measured. The countdown is unaffected: it comes from the")
+            MB:Print("spell's cost, which is not secret.")
+        else
+            MB:Print("verify: mana could not be read here.")
+            MB:Print("try it outside an instance and out of combat.")
+        end
         return
     end
     if type(C_Timer) ~= "table" or type(C_Timer.After) ~= "function" then

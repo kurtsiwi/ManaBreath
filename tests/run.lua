@@ -836,6 +836,55 @@ MB:Cancel()
 slash("style flask")
 MOCK.mana = 2000
 
+print("\n-- con el mana secreto, el addon lo dice en vez de callarse --")
+said = {}
+MB.Print = function(self, ...)
+    local parts = {}
+    for i = 1, select("#", ...) do parts[i] = tostring((select(i, ...))) end
+    said[#said + 1] = table.concat(parts, " ")
+end
+local realMana141 = MOCK.mana
+MOCK.mana = MOCK.SECRET
+check("el addon lo detecta", MB:ManaIsSecret(), true)
+check("y no se puede leer", MB:GetMana(), nil)
+
+said = {}
+MB.verifyArmed = nil
+slash("verify")
+check("verify lo explica", saidMatch("secret value"), true)
+check("y no se arma", MB.verifyArmed, nil)
+check("sin mandar a cambiar de sitio", saidMatch("outside an instance"), false)
+
+said = {}
+slash("fallback on")
+check("el respaldo avisa de que no hara nada", saidMatch("it will do nothing here"), true)
+slash("fallback off")
+
+said = {}
+slash("rate on")
+check("el mana por segundo avisa", saidMatch("it cannot be measured here"), true)
+
+said = {}
+slash("regen on")
+check("el seguimiento avisa", saidMatch("not on this client"), true)
+
+said = {}
+slash("status")
+check("status lo imprime", saidMatch("mana reads: |cffff9900secret|r"), true)
+
+-- Y con el mana legible, los mismos mandos dicen lo de siempre.
+MOCK.mana = realMana141
+check("deja de ser secreto", MB:ManaIsSecret(), false)
+said = {}
+slash("fallback on")
+check("vuelve el aviso de falsos positivos", saidMatch("false positives"), true)
+slash("fallback off")
+said = {}
+slash("regen on")
+check("vuelve la explicacion normal", saidMatch("goes on tracking"), true)
+MB.Print = realPrint
+MB:Cancel()
+
 print("\n-- el aviso del final de la regla dura lo que diga doneHold --")
 check("por defecto son 3.7s", MB.defaults.doneHold, 3.7)
 check("el panel lo trae como deslizador", MOCK.settings.MANABREATH_DONEHOLD.control, "slider")

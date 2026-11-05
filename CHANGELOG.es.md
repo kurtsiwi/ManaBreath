@@ -2,6 +2,37 @@
 
 Traduccion de [CHANGELOG.md](CHANGELOG.md), que es el que se publica.
 
+## 1.4.1
+
+### Lo que Forever permite de verdad
+
+- Forever corre sobre el motor de Midnight y, en el cliente vivo, tu **maná
+  actual es un valor secreto**: los addons pueden dibujarlo, nunca leerlo. Era
+  una suposicion documentada; ahora es un hecho medido, confirmado con
+  `issecretvalue()` contra el cliente en marcha. El maná **máximo** no es
+  secreto, y el coste del hechizo tampoco.
+- Asi que la **cuenta atrás de 5 segundos queda intacta** — sale de
+  `C_Spell.GetSpellPowerCost` — y con ella el aviso `regen`, el sonido, las
+  tres pieles y el panel de opciones.
+- Pero hay cuatro cosas que alli no pueden funcionar, y esta version **lo dice
+  en vez de dejar mandos que no hacen nada**:
+  — `/mb verify` explica que el maná es un valor secreto en este cliente y que
+    la regla no se puede medir, en vez de mandarte a probar a otro sitio.
+    Cambiar de sitio no va a servir.
+  — `/mb fallback on` avisa de que no hara nada: con un valor secreto, una
+    bajada de maná no se distingue de una subida.
+  — `/mb rate on` avisa de que una tasa son dos lecturas restadas.
+  — `/mb regen on` avisa de que no hay maná que seguir, asi que el matraz se
+    apaga cuando acaba el aviso.
+- `/mb status` ganó una linea **`mana reads:`** que imprime `secret` o `plain`.
+  La linea `restricted context:` se queda, pero `C_RestrictedActions` no existe
+  en Forever, asi que lo informa en vez de adivinar.
+- El README ya no promete el porcentaje de maná, el maná por segundo ni
+  `/mb verify` sin decir donde funcionan, y una seccion nueva deja claro que
+  permite el cliente vivo y que no.
+- No se quito nada. En un cliente que entregue el maná como numero normal todo
+  se comporta igual que antes, y las pruebas cubren los dos clientes.
+
 ## 1.4.0
 
 ### Toda la interfaz en ingles

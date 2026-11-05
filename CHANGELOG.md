@@ -1,5 +1,36 @@
 # Changelog
 
+## 1.4.1
+
+### What Forever actually allows
+
+- Forever runs on the Midnight engine, and on the live client your **current
+  mana is a secret value**: addons may draw it, never read it. That was a
+  documented assumption until now; it is now a measured fact, confirmed with
+  `issecretvalue()` against the running client. The **maximum** mana is not
+  secret, and neither is the spell's cost.
+- So the **5-second countdown is untouched** — it comes from
+  `C_Spell.GetSpellPowerCost` — and so is the `regen` notice, the sound, the
+  three looks and the options panel.
+- But four things cannot work there, and this release **says so instead of
+  leaving switches that quietly do nothing**:
+  — `/mb verify` explains that mana is a secret value on this client and that
+    the rule cannot be measured, rather than suggesting you move somewhere
+    else and try again. Moving will not help.
+  — `/mb fallback on` warns that it will do nothing: with a secret value a mana
+    drop cannot be told from a rise.
+  — `/mb rate on` warns that a rate is two readings subtracted.
+  — `/mb regen on` warns that there is no mana to follow, so the flask goes out
+    when the notice ends.
+- `/mb status` gained a **`mana reads:`** line that prints `secret` or `plain`.
+  The `restricted context:` line stays, but `C_RestrictedActions` does not
+  exist on Forever, so it reports that instead of guessing.
+- The README no longer promises the mana percentage, the mana per second or
+  `/mb verify` without saying where they work, and a new section spells out
+  what the live client allows and what it does not.
+- Nothing was removed. On a client that hands over mana as a plain number,
+  everything behaves exactly as before, and the tests cover both clients.
+
 ## 1.4.0
 
 ### The whole interface in English

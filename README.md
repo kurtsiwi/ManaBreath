@@ -4,11 +4,38 @@
 
 An addon for **World of Warcraft: Forever** that shows when the mana
 regeneration **5-second rule** (5SR) is active: an animated flask fills over
-the 5 seconds after you spend mana, counts down inside the bulb, and then stays
-lit tracking the mana coming back in, tick by tick, until it is full or you
-leave combat.
+the 5 seconds after you spend mana, counts down inside the bulb, and marks the
+moment mana starts coming back.
 
 Lightweight and focused on one thing — no potions, gems or runes.
+
+## What Forever allows
+
+Forever runs on the **Midnight** engine, where your **current mana is a secret
+value**: addons may draw it, never read it. ManaBreath checks this at runtime
+with `issecretvalue()` and says so, instead of leaving switches that quietly do
+nothing.
+
+**Works on the live client**, because none of it needs to read your mana:
+
+- The 5-second countdown, taken from the spell's cost
+  (`C_Spell.GetSpellPowerCost`), which is not secret.
+- The `regen` notice when the rule ends, and the water drop with it.
+- The three looks, the options panel and every setting.
+
+**Does not work there**, and the addon says so when you try:
+
+- The mana percentage in the bulb, and the flask following your real mana:
+  both mean formatting or comparing a secret value.
+- The mana per second (`/mb rate`), which is two readings subtracted.
+- `/mb verify`, which compares the mana inside the window against the mana
+  outside it.
+- `/mb fallback`, which cannot tell a drop from a rise.
+
+`/mb status` prints `mana reads: secret` when that is the case. The flask
+following your mana can come back — the sanctioned path is a StatusBar fed the
+secret value directly, without the addon ever seeing it — and that is the next
+thing on the list.
 
 ## Installation
 
@@ -50,6 +77,10 @@ mana.
 | Number in the bulb | Mana percentage |
 | Liquid flash | A regeneration tick just landed |
 | **Glow around the flask** | You are regenerating mana |
+
+This phase has to read your mana, so **on Forever it does not run**: the flask
+shows the `regen` notice and goes out. See [What Forever
+allows](#what-forever-allows).
 
 The green phase ends in four ways: mana fills up, you leave combat, you spend
 mana again (which starts the blue rule over) or 4 seconds pass without a single
@@ -162,14 +193,14 @@ flask even mid-rule.
 | `/mb size <width> <height>` | Frame size; the art assumes a square frame |
 | `/mb sound on/off` | A water drop when the rule ends |
 | `/mb glow regen/rule/off` | When the flask glows |
-| `/mb regen on/off` | Track the mana coming back after the rule |
+| `/mb regen on/off` | Track the mana coming back after the rule (needs readable mana) |
 | `/mb hold <seconds>` | How long the `regen` notice holds, 0 to 10 |
 | `/mb text on/off` | Countdown inside the bulb |
-| `/mb rate on/off` | Mana per second, in the bar and in text mode |
+| `/mb rate on/off` | Mana per second, in the bar and in text mode (needs readable mana) |
 | `/mb always on/off` | Keep the flask always visible |
-| `/mb fallback on/off` | Also detect via mana drops |
+| `/mb fallback on/off` | Also detect via mana drops (needs readable mana) |
 | `/mb channel on/off` | Restart the countdown when a channel is cut |
-| `/mb verify` | Measure against the client whether the 5 s rule really exists |
+| `/mb verify` | Measure against the client whether the 5 s rule really exists (needs readable mana) |
 | `/mb debug on/off` | Print the cost read for every cast |
 | `/mb status` | Current state, restricted context and where costs are read from |
 | `/mb reset` | Restore defaults |

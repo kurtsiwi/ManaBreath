@@ -145,6 +145,18 @@ function MB:GetMana()
     return CurrentMana()
 end
 
+-- Si el mana actual llega como Secret Value, el addon puede dibujarlo pero
+-- nunca leerlo: ni cifra, ni resta, ni comparacion. Eso apaga de raiz el
+-- porcentaje, el mana por segundo, /mb verify y el respaldo por bajadas de
+-- mana, y conviene decirlo en vez de dejar mandos que no hacen nada. La regla
+-- de 5 s no depende de esto: se detecta por el coste del hechizo.
+--
+-- No se cachea: el juego decide valor a valor, y un cliente podria proteger
+-- el mana solo en ciertos contextos.
+function MB:ManaIsSecret()
+    return IsSecret(UnitPower("player", MANA))
+end
+
 -- Mana de 0 a 1, o nil si no se puede saber. UnitPowerMax("player") no es
 -- secreto en 12.0, pero se pasa por SafeNumber igual: si algun dia lo fuera,
 -- el matraz se apagaria en vez de reventar.
