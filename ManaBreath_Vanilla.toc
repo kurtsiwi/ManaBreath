@@ -16,6 +16,7 @@
 ## AllowAddOnTableAccess: 0
 ## IconTexture: Interface\AddOns\ManaBreath\Art\Icon
 ## AddonCompartmentFunc: ManaBreath_OnAddonCompartmentClick
+## X-Curse-Project-ID: 1769566
 ## X-License: MIT
 ## X-Website: https://github.com/kurtsiwi/ManaBreath
 
